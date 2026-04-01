@@ -1,8 +1,5 @@
 #include <yaml.h>
 
-YAML_DECLARE(int)
-yaml_parser_update_buffer(yaml_parser_t *parser, size_t length);
-
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -12,17 +9,24 @@ yaml_parser_update_buffer(yaml_parser_t *parser, size_t length);
 #include <assert.h>
 
 /*
+ * The upstream reader test used yaml_parser_update_buffer() and direct access
+ * to parser.buffer/parser.unread. Those internals are not part of libyaml's
+ * public API, so this test now exercises reader behavior through
+ * yaml_parser_load() and public document inspection instead.
+ */
+
+/*
  * Test cases are stolen from
  * http://www.cl.cam.ac.uk/~mgk25/ucs/examples/UTF-8-test.txt
  */
 
 typedef struct {
-    char *title;
-    char *test;
+    const char *title;
+    const char *test;
     int result;
 } test_case;
 
-test_case utf8_sequences[] = {
+static test_case utf8_sequences[] = {
     /* {"title", "test 1|test 2|...|test N!", (0 or 1)}, */
 
     {"a simple test", "'test' is '\xd0\xbf\xd1\x80\xd0\xbe\xd0\xb2\xd0\xb5\xd1\x80\xd0\xba\xd0\xb0' in Russian!", 1},
@@ -101,10 +105,9 @@ test_case utf8_sequences[] = {
     {NULL, NULL, 0}
 };
 
-test_case boms[] = {
-    
-    /* {"title", "test!", lenth}, */
-    
+static test_case boms[] = {
+    /* {"title", "test!", length}, */
+
     {"no bom (utf-8)", "Hi is \xd0\x9f\xd1\x80\xd0\xb8\xd0\xb2\xd0\xb5\xd1\x82!", 13},
     {"bom (utf-8)", "\xef\xbb\xbfHi is \xd0\x9f\xd1\x80\xd0\xb8\xd0\xb2\xd0\xb5\xd1\x82!", 13},
     {"bom (utf-16-le)", "\xff\xfeH\x00i\x00 \x00i\x00s\x00 \x00\x1f\x04@\x04""8\x04""2\x04""5\x04""B\x04!", 13},
@@ -112,237 +115,269 @@ test_case boms[] = {
     {NULL, NULL, 0}
 };
 
-char *bom_original = "Hi is \xd0\x9f\xd1\x80\xd0\xb8\xd0\xb2\xd0\xb5\xd1\x82";
+static const unsigned char bom_original[] =
+    "Hi is \xd0\x9f\xd1\x80\xd0\xb8\xd0\xb2\xd0\xb5\xd1\x82";
 
-int check_utf8_sequences(void)
+static void
+print_parser_error(yaml_parser_t *parser)
+{
+    if (!parser->error) {
+        printf("(no error)\n");
+        return;
+    }
+
+    if (parser->error == YAML_READER_ERROR) {
+        if (parser->problem_value != -1) {
+            printf("(reader error: %s: #%X at %ld)\n",
+                    parser->problem, parser->problem_value,
+                    (long)parser->problem_offset);
+        }
+        else {
+            printf("(reader error: %s at %ld)\n",
+                    parser->problem, (long)parser->problem_offset);
+        }
+        return;
+    }
+
+    if (parser->problem) {
+        printf("(parser error: %s at line %ld, column %ld)\n",
+                parser->problem,
+                (long)parser->problem_mark.line + 1,
+                (long)parser->problem_mark.column + 1);
+    }
+    else {
+        printf("(parser error type %d)\n", parser->error);
+    }
+}
+
+static int
+load_document(const unsigned char *input, size_t length, yaml_parser_t *parser,
+        yaml_document_t *document)
+{
+    assert(yaml_parser_initialize(parser));
+    yaml_parser_set_input_string(parser, input, length);
+    return yaml_parser_load(parser, document);
+}
+
+static int
+check_utf8_segment(const unsigned char *input, size_t length, int expect_success)
 {
     yaml_parser_t parser;
+    yaml_document_t document;
+    yaml_node_t *root = NULL;
+    int ok;
+    int failed = 0;
+
+    ok = load_document(input, length, &parser, &document);
+
+    if (expect_success) {
+        if (!ok) {
+            failed = 1;
+        }
+        else {
+            root = yaml_document_get_root_node(&document);
+            if (!length) {
+                if (root) {
+                    failed = 1;
+                    printf("\t\t- (expected an empty stream)\n");
+                }
+            }
+            else if (!root || root->type != YAML_SCALAR_NODE) {
+                failed = 1;
+                printf("\t\t- (expected a scalar document)\n");
+            }
+        }
+    }
+    else {
+        if (ok) {
+            failed = 1;
+            printf("\t\t- (expected a reader error, but the input loaded successfully)\n");
+        }
+        else if (parser.error != YAML_READER_ERROR) {
+            failed = 1;
+            printf("\t\t- (expected a reader error, got error type %d)\n",
+                    parser.error);
+        }
+    }
+
+    if (!failed) {
+        printf("\t\t+ ");
+        print_parser_error(&parser);
+    }
+
+    if (ok) {
+        yaml_document_delete(&document);
+    }
+    yaml_parser_delete(&parser);
+
+    return failed;
+}
+
+static int
+check_scalar_case(const char *title, const unsigned char *input,
+        size_t input_length, const unsigned char *expected_value,
+        size_t expected_length)
+{
+    yaml_parser_t parser;
+    yaml_document_t document;
+    yaml_node_t *root = NULL;
+    int ok;
+    int failed = 0;
+
+    printf("\t%s: ", title);
+
+    ok = load_document(input, input_length, &parser, &document);
+    if (!ok) {
+        printf("- ");
+        print_parser_error(&parser);
+        yaml_parser_delete(&parser);
+        return 1;
+    }
+
+    root = yaml_document_get_root_node(&document);
+    if (!root || root->type != YAML_SCALAR_NODE) {
+        printf("- (expected a scalar document)\n");
+        failed = 1;
+    }
+    else if (root->data.scalar.length != expected_length) {
+        printf("- (length=%ld while expected length=%ld)\n",
+                (long)root->data.scalar.length, (long)expected_length);
+        failed = 1;
+    }
+    else if (memcmp(root->data.scalar.value, expected_value, expected_length) != 0) {
+        printf("- (decoded scalar does not match the expected value)\n");
+        failed = 1;
+    }
+    else {
+        printf("+\n");
+    }
+
+    yaml_document_delete(&document);
+    yaml_parser_delete(&parser);
+
+    return failed;
+}
+
+int
+check_utf8_sequences(void)
+{
     int failed = 0;
     int k;
+
     printf("checking utf-8 sequences...\n");
     for (k = 0; utf8_sequences[k].test; k++) {
-        char *title = utf8_sequences[k].title;
-        int check = utf8_sequences[k].result;
-        int result;
-        char *start = utf8_sequences[k].test;
-        char *end = start;
+        const char *title = utf8_sequences[k].title;
+        int expect_success = utf8_sequences[k].result;
+        const char *start = utf8_sequences[k].test;
+        const char *end = start;
+
         printf("\t%s:\n", title);
-        while(1) {
-            while (*end != '|' && *end != '!') end++;
-            yaml_parser_initialize(&parser);
-            yaml_parser_set_input_string(&parser, (unsigned char *)start, end-start);
-            result = yaml_parser_update_buffer(&parser, end-start);
-            if (result != check) {
-                printf("\t\t- ");
-                failed ++;
+        while (1) {
+            while (*end != '|' && *end != '!') {
+                end++;
             }
-            else {
-                printf("\t\t+ ");
+            failed += check_utf8_segment((const unsigned char *)start,
+                    (size_t)(end - start), expect_success);
+            if (*end == '!') {
+                break;
             }
-            if (!parser.error) {
-                printf("(no error)\n");
-            }
-            else if (parser.error == YAML_READER_ERROR) {
-                if (parser.problem_value != -1) {
-                    printf("(reader error: %s: #%X at %ld)\n",
-                            parser.problem, parser.problem_value, (long)parser.problem_offset);
-                }
-                else {
-                    printf("(reader error: %s at %ld)\n",
-                            parser.problem, (long)parser.problem_offset);
-                }
-            }
-            if (*end == '!') break;
             start = ++end;
-            yaml_parser_delete(&parser);
-        };
+        }
         printf("\n");
     }
     printf("checking utf-8 sequences: %d fail(s)\n", failed);
     return failed;
 }
 
-int check_boms(void)
+int
+check_boms(void)
 {
-    yaml_parser_t parser;
     int failed = 0;
     int k;
+    size_t expected_length = strlen((const char *)bom_original);
+
     printf("checking boms...\n");
     for (k = 0; boms[k].test; k++) {
-        char *title = boms[k].title;
-        int check = boms[k].result;
-        int result;
-        char *start = boms[k].test;
-        char *end = start;
-        while (*end != '!') end++;
-        printf("\t%s: ", title);
-        yaml_parser_initialize(&parser);
-        yaml_parser_set_input_string(&parser, (unsigned char *)start, end-start);
-        result = yaml_parser_update_buffer(&parser, end-start);
-        if (!result) {
-            printf("- (reader error: %s at %ld)\n", parser.problem, (long)parser.problem_offset);
-            failed++;
+        const char *start = boms[k].test;
+        const char *end = start;
+
+        while (*end != '!') {
+            end++;
         }
-        else {
-            if (parser.unread != check) {
-                printf("- (length=%ld while expected length=%d)\n", (long)parser.unread, check);
-                failed++;
-            }
-            else if (memcmp(parser.buffer.start, bom_original, check) != 0) {
-                printf("- (value '%s' does not equal to the original value '%s')\n", parser.buffer.start, bom_original);
-                failed++;
-            }
-            else {
-                printf("+\n");
-            }
-        }
-        yaml_parser_delete(&parser);
+
+        failed += check_scalar_case(boms[k].title, (const unsigned char *)start,
+                (size_t)(end - start), bom_original, expected_length);
     }
     printf("checking boms: %d fail(s)\n", failed);
     return failed;
 }
 
-#define LONG    100000
+#define LONG 100000
 
-int check_long_utf8(void)
+int
+check_long_utf8(void)
 {
-    yaml_parser_t parser;
     int k = 0;
     int j;
-    int failed = 0;
-    unsigned char ch0, ch1;
-    unsigned char *buffer = (unsigned char *)malloc(3+LONG*2);
-    assert(buffer);
+    int failed;
+    unsigned char *input = (unsigned char *)malloc(3 + LONG*2);
+    unsigned char *expected = (unsigned char *)malloc(LONG*2);
+
+    assert(input);
+    assert(expected);
+
     printf("checking a long utf8 sequence...\n");
-    buffer[k++] = '\xef';
-    buffer[k++] = '\xbb';
-    buffer[k++] = '\xbf';
-    for (j = 0; j < LONG; j ++) {
-        if (j % 2) {
-            buffer[k++] = '\xd0';
-            buffer[k++] = '\x90';
-        }
-        else {
-            buffer[k++] = '\xd0';
-            buffer[k++] = '\xaf';
-        }
+
+    input[k++] = '\xef';
+    input[k++] = '\xbb';
+    input[k++] = '\xbf';
+    for (j = 0; j < LONG; j++) {
+        unsigned char lo = (j % 2) ? '\x90' : '\xaf';
+        input[k++] = '\xd0';
+        input[k++] = lo;
+        expected[j*2] = '\xd0';
+        expected[j*2 + 1] = lo;
     }
-    yaml_parser_initialize(&parser);
-    yaml_parser_set_input_string(&parser, buffer, 3+LONG*2);
-    for (k = 0; k < LONG; k++) {
-        if (!parser.unread) {
-            if (!yaml_parser_update_buffer(&parser, 1)) {
-                printf("\treader error: %s at %ld\n", parser.problem, (long)parser.problem_offset);
-                failed = 1;
-                break;
-            }
-        }
-        if (!parser.unread) {
-            printf("\tnot enough characters at %d\n", k);
-            failed = 1;
-            break;
-        }
-        if (k % 2) {
-            ch0 = '\xd0';
-            ch1 = '\x90';
-        }
-        else {
-            ch0 = '\xd0';
-            ch1 = '\xaf';
-        }
-        if (parser.buffer.pointer[0] != ch0 || parser.buffer.pointer[1] != ch1) {
-            printf("\tincorrect UTF-8 sequence: %X %X instead of %X %X\n",
-                    (int)parser.buffer.pointer[0], (int)parser.buffer.pointer[1],
-                    (int)ch0, (int)ch1);
-            failed = 1;
-            break;
-        }
-        parser.buffer.pointer += 2;
-        parser.unread -= 1;
-    }
-    if (!failed) {
-        if (!yaml_parser_update_buffer(&parser, 1)) {
-            printf("\treader error: %s at %ld\n", parser.problem, (long)parser.problem_offset);
-            failed = 1;
-        }
-        else if (parser.buffer.pointer[0] != '\0') {
-            printf("\texpected NUL, found %X (eof=%d, unread=%ld)\n", (int)parser.buffer.pointer[0], parser.eof, (long)parser.unread);
-            failed = 1;
-        }
-    }
-    yaml_parser_delete(&parser);
-    free(buffer);
+
+    failed = check_scalar_case("decoded scalar", input, (size_t)(3 + LONG*2),
+            expected, (size_t)(LONG*2));
+
+    free(expected);
+    free(input);
+
     printf("checking a long utf8 sequence: %d fail(s)\n", failed);
     return failed;
 }
 
-int check_long_utf16(void)
+int
+check_long_utf16(void)
 {
-    yaml_parser_t parser;
     int k = 0;
     int j;
-    int failed = 0;
-    unsigned char ch0, ch1;
-    unsigned char *buffer = (unsigned char *)malloc(2+LONG*2);
-    assert(buffer);
+    int failed;
+    unsigned char *input = (unsigned char *)malloc(2 + LONG*2);
+    unsigned char *expected = (unsigned char *)malloc(LONG*2);
+
+    assert(input);
+    assert(expected);
+
     printf("checking a long utf16 sequence...\n");
-    buffer[k++] = '\xff';
-    buffer[k++] = '\xfe';
-    for (j = 0; j < LONG; j ++) {
-        if (j % 2) {
-            buffer[k++] = '\x10';
-            buffer[k++] = '\x04';
-        }
-        else {
-            buffer[k++] = '/';
-            buffer[k++] = '\x04';
-        }
+
+    input[k++] = '\xff';
+    input[k++] = '\xfe';
+    for (j = 0; j < LONG; j++) {
+        input[k++] = (j % 2) ? '\x10' : '/';
+        input[k++] = '\x04';
+        expected[j*2] = '\xd0';
+        expected[j*2 + 1] = (j % 2) ? '\x90' : '\xaf';
     }
-    yaml_parser_initialize(&parser);
-    yaml_parser_set_input_string(&parser, buffer, 2+LONG*2);
-    for (k = 0; k < LONG; k++) {
-        if (!parser.unread) {
-            if (!yaml_parser_update_buffer(&parser, 1)) {
-                printf("\treader error: %s at %ld\n", parser.problem, (long)parser.problem_offset);
-                failed = 1;
-                break;
-            }
-        }
-        if (!parser.unread) {
-            printf("\tnot enough characters at %d\n", k);
-            failed = 1;
-            break;
-        }
-        if (k % 2) {
-            ch0 = '\xd0';
-            ch1 = '\x90';
-        }
-        else {
-            ch0 = '\xd0';
-            ch1 = '\xaf';
-        }
-        if (parser.buffer.pointer[0] != ch0 || parser.buffer.pointer[1] != ch1) {
-            printf("\tincorrect UTF-8 sequence: %X %X instead of %X %X\n",
-                    (int)parser.buffer.pointer[0], (int)parser.buffer.pointer[1],
-                    (int)ch0, (int)ch1);
-            failed = 1;
-            break;
-        }
-        parser.buffer.pointer += 2;
-        parser.unread -= 1;
-    }
-    if (!failed) {
-        if (!yaml_parser_update_buffer(&parser, 1)) {
-            printf("\treader error: %s at %ld\n", parser.problem, (long)parser.problem_offset);
-            failed = 1;
-        }
-        else if (parser.buffer.pointer[0] != '\0') {
-            printf("\texpected NUL, found %X (eof=%d, unread=%ld)\n", (int)parser.buffer.pointer[0], parser.eof, (long)parser.unread);
-            failed = 1;
-        }
-    }
-    yaml_parser_delete(&parser);
-    free(buffer);
+
+    failed = check_scalar_case("decoded scalar", input, (size_t)(2 + LONG*2),
+            expected, (size_t)(LONG*2));
+
+    free(expected);
+    free(input);
+
     printf("checking a long utf16 sequence: %d fail(s)\n", failed);
     return failed;
 }
@@ -350,5 +385,8 @@ int check_long_utf16(void)
 int
 main(void)
 {
-    return check_utf8_sequences() + check_boms() + check_long_utf8() + check_long_utf16();
+    return check_utf8_sequences()
+         + check_boms()
+         + check_long_utf8()
+         + check_long_utf16();
 }
