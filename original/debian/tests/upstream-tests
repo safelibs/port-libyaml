@@ -1,0 +1,24 @@
+#!/bin/sh
+
+set -e
+
+if [ -n "${DEB_HOST_GNU_TYPE:-}" ]; then
+    CROSS_COMPILE=${DEB_HOST_GNU_TYPE}-
+else
+    CROSS_COMPILE=
+fi
+
+WORKDIR="$(mktemp -d)"
+trap "rm -rf $WORKDIR" 0 INT QUIT ABRT PIPE TERM
+
+# check whether the upstream tests can still be compiled against the packages *as-installed*
+# and check whether they still succeed
+PKGCONFIG="$(pkg-config --cflags --libs yaml-0.1)"
+for i in tests/test-*.c; do
+    ITEM="$WORKDIR/$(basename $i .c)"
+    echo "COMPILING $ITEM"
+    ${CROSS_COMPILE}gcc -pedantic -Wall -Werror -o "$ITEM" "$i" $PKGCONFIG
+    echo "EXECUTING $ITEM"
+    $ITEM
+    echo
+done
