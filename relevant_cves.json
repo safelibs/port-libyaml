@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-01T23:43:06Z",
+  "source_file": "/home/yans/code/safelibs/ported/libyaml/all_cves.json",
+  "package": {
+    "name": "libyaml",
+    "target_language": "Rust"
+  },
+  "selection_criteria": {
+    "include": [
+      "Published libyaml CVEs whose primary issue is not memory corruption",
+      "Issues whose root cause could still exist in a memory-safe Rust parser, such as parser state-machine errors, assertion or panic reachable from attacker input, specification edge cases, or algorithmic denial of service"
+    ],
+    "exclude": [
+      "C-only memory-corruption issues whose security impact depends on raw pointer misuse, incorrect casts, or manual buffer sizing",
+      "Withdrawn candidates and known false positives already separated in all_cves.json"
+    ]
+  },
+  "summary": {
+    "published_cves_reviewed": 3,
+    "relevant_non_memory_corruption_cves": 1,
+    "excluded_as_memory_corruption_only": 2
+  },
+  "relevant_cves": [
+    {
+      "cve_id": "CVE-2014-9130",
+      "affected_versions": [
+        "0.1.5",
+        "0.1.6"
+      ],
+      "primary_impact": "Denial of service via reachable assertion failure and process abort on crafted YAML input",
+      "memory_corruption": false,
+      "root_cause_class": "Parser state-machine and invariant handling bug in scanner simple-key bookkeeping during wrapped-string processing",
+      "why_relevant_to_rust": "Rust removes the original C memory-safety risks, but a Rust port can still reproduce this bug class if malformed wrapped scalars drive the scanner into an invalid simple-key state and the implementation responds with panic! or unreachable! instead of a recoverable parse error.",
+      "porting_guidance": [
+        "Treat attacker-controlled parser states as recoverable errors rather than internal impossibilities",
+        "Avoid panic paths for malformed input in scanner and parser state transitions",
+        "Add regression tests for wrapped-scalar and line-wrapping cases that previously triggered the assertion"
+      ],
+      "evidence": {
+        "cve_description_summary": "The CVE describes a denial of service caused by an assertion failure and crash in scanner.c when processing line-wrapping cases.",
+        "upstream_fix_summary": "Upstream fixed the issue by removing the supposedly impossible assertion in yaml_parser_save_simple_key so the malformed input produces a normal parse failure instead of aborting.",
+        "example_trigger": "a: \"\\n\"     b: true"
+      },
+      "source_urls": [
+        "https://cveawg.mitre.org/api/cve/CVE-2014-9130",
+        "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2014-9130",
+        "http://www.openwall.com/lists/oss-security/2014/11/28/1",
+        "https://bitbucket.org/xi/libyaml/issue/10/wrapped-strings-cause-assert-failure",
+        "https://github.com/yaml/libyaml/commit/e6aa721cc0e5a48f408c52355559fd36780ba32a"
+      ]
+    }
+  ],
+  "excluded_published_cves": [
+    {
+      "cve_id": "CVE-2013-6393",
+      "reason": "Heap-based buffer overflow caused by an incorrect cast while scanning tag URIs. The security impact is memory corruption in the C implementation rather than a parser-logic bug that obviously survives a safe Rust rewrite."
+    },
+    {
+      "cve_id": "CVE-2014-2525",
+      "reason": "Heap-based buffer overflow in URI escape scanning for long percent-encoded sequences. This is a manual-buffer-management flaw specific to the C implementation."
+    }
+  ]
+}
