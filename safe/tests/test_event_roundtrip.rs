@@ -1,6 +1,7 @@
 use std::env;
 use std::ffi::CStr;
-use std::fs::{self, File};
+use std::fs;
+use std::io::Write;
 use std::mem;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -240,6 +241,38 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
     let arch = multiarch();
     let stage_lib_dir = stage_root.join("usr/lib").join(&arch);
     let compiler = compiler();
+    let suite_events = b"+STR\n+DOC\n+MAP\n=VAL :a\n=VAL :1\n-MAP\n-DOC\n-STR\n";
+
+    let mut rust_suite = Command::new("cargo")
+        .arg("run")
+        .arg("--manifest-path")
+        .arg(manifest_dir.join("Cargo.toml"))
+        .arg("--offline")
+        .arg("--example")
+        .arg("run_emitter_test_suite")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("failed to spawn Rust run_emitter_test_suite example");
+    rust_suite
+        .stdin
+        .as_mut()
+        .expect("run_emitter_test_suite stdin should be piped")
+        .write_all(suite_events)
+        .expect("failed to write suite events to Rust example");
+    let rust_suite_output = rust_suite
+        .wait_with_output()
+        .expect("failed to collect Rust run_emitter_test_suite output");
+    assert!(
+        rust_suite_output.status.success(),
+        "Rust run_emitter_test_suite exited with failure\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&rust_suite_output.stdout),
+        String::from_utf8_lossy(&rust_suite_output.stderr)
+    );
+    let rust_suite_stdout = String::from_utf8(rust_suite_output.stdout)
+        .expect("Rust run_emitter_test_suite emitted invalid UTF-8");
+    assert!(rust_suite_stdout.contains("a: 1"), "{rust_suite_stdout}");
 
     run_command(
         Command::new("bash")
@@ -309,7 +342,8 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
         "run emitter_api_exports object-link mode",
     );
 
-    let yaml_input = repo_root.join("original/examples/mapping.yaml");
+    let anchors_yaml = repo_root.join("original/examples/anchors.yaml");
+    let json_yaml = repo_root.join("original/examples/json.yaml");
     let run_emitter_binary = temp_dir("run-emitter-safe").join("run-emitter-safe");
     compile_upstream_tool(
         &compiler,
@@ -327,7 +361,8 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
         "assert staged loader for run-emitter",
     );
     let run_emitter_output = Command::new(&run_emitter_binary)
-        .arg(&yaml_input)
+        .arg(&anchors_yaml)
+        .arg(&json_yaml)
         .output()
         .expect("failed to run upstream run-emitter");
     assert!(
@@ -338,15 +373,11 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
     );
     let run_emitter_stdout =
         String::from_utf8(run_emitter_output.stdout).expect("run-emitter emitted invalid UTF-8");
-    assert!(run_emitter_stdout.contains("PASSED"), "{run_emitter_stdout}");
     assert!(!run_emitter_stdout.contains("FAILED"), "{run_emitter_stdout}");
+    assert_eq!(run_emitter_stdout.matches("PASSED (length:").count(), 2, "{run_emitter_stdout}");
 
     let suite_input = temp_dir("run-emitter-suite-input").join("suite.events");
-    fs::write(
-        &suite_input,
-        b"+STR\n+DOC ---\n+MAP\n=VAL :message\n=VAL :hello\n-MAP\n-DOC ...\n-STR\n",
-    )
-    .expect("failed to write emitter test-suite input");
+    fs::write(&suite_input, suite_events).expect("failed to write emitter test-suite input");
     let run_emitter_suite_binary =
         temp_dir("run-emitter-test-suite-safe").join("run-emitter-test-suite-safe");
     compile_upstream_tool(
@@ -369,7 +400,7 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
     );
     let run_emitter_suite_stdout = String::from_utf8(run_emitter_suite_output.stdout)
         .expect("run-emitter-test-suite emitted invalid UTF-8");
-    assert!(run_emitter_suite_stdout.contains("message: hello"));
+    assert!(run_emitter_suite_stdout.contains("a: 1"), "{run_emitter_suite_stdout}");
 
     let reformatter_binary = temp_dir("example-reformatter-safe").join("example-reformatter-safe");
     compile_upstream_tool(
@@ -380,10 +411,22 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
         &reformatter_binary,
         "compile upstream example-reformatter.c",
     );
-    let reformatter_output = Command::new(&reformatter_binary)
-        .stdin(Stdio::from(File::open(&yaml_input).expect("failed to open YAML input")))
-        .output()
-        .expect("failed to run upstream example-reformatter");
+    // The upstream verifier feeds a short flow-style document over stdin.
+    let mut reformatter = Command::new(&reformatter_binary)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("failed to spawn upstream example-reformatter");
+    reformatter
+        .stdin
+        .as_mut()
+        .expect("example-reformatter stdin should be piped")
+        .write_all(b"foo: [bar, {x: y}]\n")
+        .expect("failed to write reformatter input");
+    let reformatter_output = reformatter
+        .wait_with_output()
+        .expect("failed to collect example-reformatter output");
     assert!(
         reformatter_output.status.success(),
         "example-reformatter exited with failure\nstdout:\n{}\nstderr:\n{}",
@@ -392,7 +435,8 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
     );
     let reformatter_stdout = String::from_utf8(reformatter_output.stdout)
         .expect("example-reformatter emitted invalid UTF-8");
-    assert!(reformatter_stdout.contains("key: value"));
+    assert!(reformatter_stdout.contains("foo:"), "{reformatter_stdout}");
+    assert!(reformatter_stdout.contains("bar"), "{reformatter_stdout}");
 
     let deconstructor_binary =
         temp_dir("example-deconstructor-safe").join("example-deconstructor-safe");
@@ -404,10 +448,21 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
         &deconstructor_binary,
         "compile upstream example-deconstructor.c",
     );
-    let deconstructor_output = Command::new(&deconstructor_binary)
-        .stdin(Stdio::from(File::open(&yaml_input).expect("failed to open YAML input")))
-        .output()
-        .expect("failed to run upstream example-deconstructor");
+    let mut deconstructor = Command::new(&deconstructor_binary)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("failed to spawn upstream example-deconstructor");
+    deconstructor
+        .stdin
+        .as_mut()
+        .expect("example-deconstructor stdin should be piped")
+        .write_all(b"foo: bar\n")
+        .expect("failed to write deconstructor input");
+    let deconstructor_output = deconstructor
+        .wait_with_output()
+        .expect("failed to collect example-deconstructor output");
     assert!(
         deconstructor_output.status.success(),
         "example-deconstructor exited with failure\nstdout:\n{}\nstderr:\n{}",
