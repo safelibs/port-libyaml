@@ -235,7 +235,7 @@ pub(crate) unsafe fn initialize_mapping_end_event(
     };
 }
 
-unsafe fn yaml_check_utf8(start: *const yaml_char_t, length: usize) -> bool {
+pub(crate) unsafe fn yaml_check_utf8(start: *const yaml_char_t, length: usize) -> bool {
     let end = start.add(length);
     let mut pointer = start;
 
@@ -289,7 +289,7 @@ unsafe fn yaml_check_utf8(start: *const yaml_char_t, length: usize) -> bool {
     true
 }
 
-unsafe fn duplicate_utf8_c_string(input: *const yaml_char_t) -> *mut yaml_char_t {
+pub(crate) unsafe fn duplicate_utf8_c_string(input: *const yaml_char_t) -> *mut yaml_char_t {
     let length = alloc::c_string_len(input.cast());
     if !yaml_check_utf8(input, length) {
         return ptr::null_mut();
@@ -297,7 +297,10 @@ unsafe fn duplicate_utf8_c_string(input: *const yaml_char_t) -> *mut yaml_char_t
     yaml_strdup(input)
 }
 
-unsafe fn duplicate_scalar_value(value: *const yaml_char_t, length: usize) -> *mut yaml_char_t {
+pub(crate) unsafe fn duplicate_scalar_value(
+    value: *const yaml_char_t,
+    length: usize,
+) -> *mut yaml_char_t {
     if !yaml_check_utf8(value, length) {
         return ptr::null_mut();
     }
