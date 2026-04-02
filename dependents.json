@@ -1,0 +1,162 @@
+{
+  "distribution": "Ubuntu 24.04 (noble)",
+  "library": "libyaml",
+  "selection": "representative rather than exhaustive",
+  "dependents": [
+    {
+      "name": "libnetplan1",
+      "source_package": "netplan.io",
+      "category": "system networking",
+      "dependency_kind": "runtime",
+      "libyaml_packages": [
+        "libyaml-0-2"
+      ],
+      "runtime_functionality": "Reads and writes Netplan YAML network definitions plus YAML state and patch data.",
+      "evidence": [
+        "The Ubuntu binary package directly Depends on libyaml-0-2, and its package description says Netplan reads YAML network configuration files.",
+        "The netplan.io source uses yaml_parser_t and yaml_emitter_t in src/util.c and exports netplan_parser_load_yaml_* and netplan_state_*_yaml interfaces."
+      ]
+    },
+    {
+      "name": "python3-yaml",
+      "source_package": "pyyaml",
+      "category": "Python runtime/library",
+      "dependency_kind": "runtime",
+      "libyaml_packages": [
+        "libyaml-0-2"
+      ],
+      "runtime_functionality": "Provides Python YAML parsing and emitting, with the packaged C accelerator backed by libyaml for faster load and dump operations.",
+      "evidence": [
+        "The Ubuntu package description calls it a YAML parser and emitter for Python and says it is built using libyaml for improved speed.",
+        "PyYAML's yaml/_yaml.pyx wraps libyaml parser and emitter APIs for the accelerated code path."
+      ]
+    },
+    {
+      "name": "ruby-psych",
+      "source_package": "ruby-psych",
+      "category": "Ruby runtime/library",
+      "dependency_kind": "runtime",
+      "libyaml_packages": [
+        "libyaml-0-2"
+      ],
+      "runtime_functionality": "Implements Ruby YAML parsing, emitting, and object serialization through Psych, the default YAML engine in modern Ruby.",
+      "evidence": [
+        "The Ubuntu package description explicitly describes ruby-psych as a libyaml wrapper for Ruby and says Psych is Ruby's default YAML parser.",
+        "ruby-psych's lib/psych.rb documents parsing, emitting, AST handling, and object serialization on top of libyaml."
+      ]
+    },
+    {
+      "name": "php8.3-yaml",
+      "source_package": "php-yaml",
+      "category": "PHP extension",
+      "dependency_kind": "runtime",
+      "libyaml_packages": [
+        "libyaml-0-2"
+      ],
+      "runtime_functionality": "Adds PHP YAML 1.1 parsing and emitting functions such as yaml_parse* and yaml_emit*.",
+      "evidence": [
+        "The Ubuntu package description says it is a YAML 1.1 parser and emitter for PHP using the LibYAML library.",
+        "The packaged source contains tests and metadata for yaml_parse* and yaml_emit* functionality."
+      ]
+    },
+    {
+      "name": "suricata",
+      "source_package": "suricata",
+      "category": "IDS/IPS daemon",
+      "dependency_kind": "runtime",
+      "libyaml_packages": [
+        "libyaml-0-2"
+      ],
+      "runtime_functionality": "Loads Suricata's YAML configuration, included YAML fragments, and tenant-specific YAML files such as suricata.yaml and tenant configs.",
+      "evidence": [
+        "The Ubuntu binary package directly Depends on libyaml-0-2.",
+        "Suricata documentation states that Suricata uses YAML for configuration, centered on suricata.yaml, and the source tree has a conf-yaml loader plus multi-tenant YAML loading paths."
+      ]
+    },
+    {
+      "name": "stubby",
+      "source_package": "getdns",
+      "category": "DNS privacy resolver",
+      "dependency_kind": "runtime",
+      "libyaml_packages": [
+        "libyaml-0-2"
+      ],
+      "runtime_functionality": "Parses the resolver's YAML configuration files such as stubby.yml at startup.",
+      "evidence": [
+        "The Ubuntu binary package directly Depends on libyaml-0-2.",
+        "The getdns/stubby source ships a YAML example configuration, documents YAML configuration in stubby.1 and README.md, and includes a LibYAML-based YAML-to-JSON conversion path in stubby/src/yaml/convert_yaml_to_json.c."
+      ]
+    },
+    {
+      "name": "ser2net",
+      "source_package": "ser2net",
+      "category": "serial-to-network daemon",
+      "dependency_kind": "runtime",
+      "libyaml_packages": [
+        "libyaml-0-2"
+      ],
+      "runtime_functionality": "Parses /etc/ser2net/ser2net.yaml and also supports YAML-formatted controller input and output modes.",
+      "evidence": [
+        "The Ubuntu binary package directly Depends on libyaml-0-2.",
+        "The ser2net source ships ser2net.yaml and ser2net.yaml(5), and controller.c uses libyaml document parsing for controller YAML mode."
+      ]
+    },
+    {
+      "name": "h2o",
+      "source_package": "h2o",
+      "category": "web server",
+      "dependency_kind": "runtime",
+      "libyaml_packages": [
+        "libyaml-0-2"
+      ],
+      "runtime_functionality": "Parses the H2O server configuration file, which is YAML, and also parses YAML-formatted TLS ticket secret files.",
+      "evidence": [
+        "The Ubuntu binary package directly Depends on libyaml-0-2.",
+        "H2O's documentation says the configuration file syntax is YAML 1.1, and the source uses yaml_parser_t in src/main.c and src/ssl.c."
+      ]
+    },
+    {
+      "name": "libcamera0.2",
+      "source_package": "libcamera",
+      "category": "camera stack",
+      "dependency_kind": "runtime",
+      "libyaml_packages": [
+        "libyaml-0-2"
+      ],
+      "runtime_functionality": "Parses camera YAML data at runtime, including camera_hal.yaml and multiple IPA sensor tuning files such as per-sensor .yaml calibration and tuning data.",
+      "evidence": [
+        "The Ubuntu binary package directly Depends on libyaml-0-2.",
+        "libcamera contains a dedicated yaml_parser.cpp helper and calls YamlParser::parse() from camera HAL configuration code and IPA tuning-file loading paths."
+      ]
+    },
+    {
+      "name": "libappstream5",
+      "source_package": "appstream",
+      "category": "software metadata library",
+      "dependency_kind": "runtime",
+      "libyaml_packages": [
+        "libyaml-0-2"
+      ],
+      "runtime_functionality": "Parses and emits AppStream YAML metadata, especially DEP-11 catalogs, and supports YAML-based NEWS and validator report handling.",
+      "evidence": [
+        "The Ubuntu binary package directly Depends on libyaml-0-2 and describes itself as a library for reading, writing, and transforming AppStream metadata.",
+        "The appstream source includes YAML parsing and emitting code in src/as-yaml.c, src/as-metadata.c, src/as-news-convert.c, and compose/asc-compose.c, with AS_FORMAT_KIND_YAML documented as AppStream YAML (DEP-11) metadata."
+      ]
+    },
+    {
+      "name": "crystal",
+      "source_package": "crystal",
+      "category": "compiler/toolchain",
+      "dependency_kind": "build-time and development-time",
+      "libyaml_packages": [
+        "libyaml-dev"
+      ],
+      "runtime_functionality": null,
+      "notes": "This is a compile-time and toolchain dependency rather than a direct runtime link to libyaml-0-2 in the packaged compiler binary.",
+      "evidence": [
+        "The Ubuntu source package Build-Depends on libyaml-dev, and the binary package Recommends libyaml-dev.",
+        "The Crystal source tree includes stdlib YAML functionality, including YAML::Serializable support and YAML parsing and emitting code, which is why libyaml headers and development files are needed when building the toolchain."
+      ]
+    }
+  ]
+}
