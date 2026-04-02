@@ -159,7 +159,10 @@ pub(crate) unsafe fn yaml_emitter_emit_impl(
     mut emitter: *mut yaml_emitter_t,
     event: *mut yaml_event_t,
 ) -> Success {
-    ENQUEUE!((*emitter), (*emitter).events, *event);
+    if ENQUEUE!((*emitter), (*emitter).events, *event) == crate::FAIL {
+        yaml_event_delete(event);
+        return FAIL;
+    }
     while yaml_emitter_need_more_events(emitter).fail {
         if yaml_emitter_analyze_event(emitter, (*emitter).events.head).fail {
             return FAIL;

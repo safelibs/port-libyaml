@@ -232,6 +232,53 @@ fn emitter_callback_failures_report_writer_errors() {
 }
 
 #[test]
+fn emitter_enqueue_failures_still_consume_and_destroy_the_event() {
+    unsafe {
+        let mut emitter = mem::zeroed::<yaml_emitter_t>();
+        let mut output = [0u8; 64];
+        let mut written = 0usize;
+        let mut event = mem::zeroed::<yaml_event_t>();
+        let scalar = b"owned-value";
+
+        assert_eq!(yaml_emitter_initialize(&mut emitter), 1);
+        yaml_emitter_set_output_string(&mut emitter, output.as_mut_ptr(), output.len(), &mut written);
+        assert_eq!(
+            yaml_scalar_event_initialize(
+                &mut event,
+                ptr::null(),
+                ptr::null(),
+                scalar.as_ptr(),
+                scalar.len() as i32,
+                1,
+                1,
+                yaml_scalar_style_t::YAML_PLAIN_SCALAR_STYLE,
+            ),
+            1
+        );
+
+        let original_head = emitter.events.head;
+        let original_tail = emitter.events.tail;
+        let original_end = emitter.events.end;
+        let invalid_tail = emitter.events.start.wrapping_sub(1);
+        emitter.events.head = emitter.events.start;
+        emitter.events.tail = invalid_tail;
+        emitter.events.end = invalid_tail;
+
+        assert_eq!(yaml_emitter_emit(&mut emitter, &mut event), 0);
+        assert_eq!(emitter.error, yaml_error_type_t::YAML_MEMORY_ERROR);
+        assert_eq!(event.r#type, yaml::yaml_event_type_t::YAML_NO_EVENT);
+        assert!(event.data.scalar.value.is_null());
+        assert!(event.data.scalar.tag.is_null());
+        assert!(event.data.scalar.anchor.is_null());
+
+        emitter.events.head = original_head;
+        emitter.events.tail = original_tail;
+        emitter.events.end = original_end;
+        yaml_emitter_delete(&mut emitter);
+    }
+}
+
+#[test]
 fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
     ensure_rg_wrapper_accepts_doubly_escaped_parentheses();
 
