@@ -57,6 +57,7 @@ fn scans_checked_in_examples_without_failure() {
         "original/examples/anchors.yaml",
         "original/examples/json.yaml",
         "original/examples/mapping.yaml",
+        "original/examples/tags.yaml",
     ] {
         let input = fs::read(repo_root.join(relative)).expect("failed to read example");
         let tokens = scan_types(&input).unwrap_or_else(|error| {
@@ -241,6 +242,7 @@ fn staged_install_runs_phase2_c_probes_and_upstream_run_scanner() {
         .arg(repo_root.join("original/examples/anchors.yaml"))
         .arg(repo_root.join("original/examples/json.yaml"))
         .arg(repo_root.join("original/examples/mapping.yaml"))
+        .arg(repo_root.join("original/examples/tags.yaml"))
         .output()
         .expect("failed to run upstream run-scanner");
     assert!(
@@ -252,7 +254,7 @@ fn staged_install_runs_phase2_c_probes_and_upstream_run_scanner() {
     let stdout = String::from_utf8(run_scanner_output.stdout)
         .expect("run-scanner emitted invalid UTF-8");
     assert!(!stdout.contains("FAILURE"), "{stdout}");
-    assert_eq!(stdout.matches("SUCCESS").count(), 3, "{stdout}");
+    assert_eq!(stdout.matches("SUCCESS").count(), 4, "{stdout}");
 }
 
 fn scan_types(input: &[u8]) -> Result<Vec<yaml_token_type_t>, String> {

@@ -1693,10 +1693,11 @@ unsafe fn yaml_parser_scan_tag_handle(
                 start_mark,
                 b"did not find expected '!'\0" as *const u8 as *const libc::c_char,
             );
-        } else {
-            *handle = string.start;
-            return OK;
+            STRING_DEL!(string);
+            return FAIL;
         }
+        *handle = string.start;
+        return OK;
     }
     STRING_DEL!(string);
     FAIL
