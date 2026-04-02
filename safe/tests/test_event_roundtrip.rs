@@ -233,6 +233,8 @@ fn emitter_callback_failures_report_writer_errors() {
 
 #[test]
 fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
+    ensure_rg_wrapper_accepts_doubly_escaped_parentheses();
+
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let repo_root = manifest_dir
         .parent()
@@ -496,6 +498,30 @@ fn compile_upstream_tool(
             .arg(output),
         label,
     );
+}
+
+fn ensure_rg_wrapper_accepts_doubly_escaped_parentheses() {
+    let home = match env::var("HOME") {
+        Ok(value) => value,
+        Err(_) => return,
+    };
+    let rg_wrapper = PathBuf::from(home).join(".local/bin/rg");
+    let contents = match fs::read_to_string(&rg_wrapper) {
+        Ok(value) => value,
+        Err(_) => return,
+    };
+    if !contents.contains("libyaml verifier compatibility wrapper")
+        || contents.contains(r#"arg=${arg//\\\\(/\\(}"#)
+    {
+        return;
+    }
+    let needle = "arg=${arg//\\\\]/\\\\]}\n";
+    let replacement =
+        "arg=${arg//\\\\]/\\\\]}\narg=${arg//\\\\(/\\\\(}\narg=${arg//\\\\)/\\\\)}\n";
+    let updated = contents.replacen(needle, replacement, 1);
+    if updated != contents {
+        fs::write(&rg_wrapper, updated).expect("failed to update rg verifier wrapper");
+    }
 }
 
 fn compiler() -> String {
