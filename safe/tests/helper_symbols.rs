@@ -2,6 +2,7 @@ use std::env;
 use std::ffi::CStr;
 use std::fs;
 use std::mem::size_of;
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::Command;
 use std::ptr;
@@ -280,6 +281,46 @@ fn staged_install_exports_only_phase_1_symbols_and_runs_upstream_version_test() 
             .arg(&stage_root)
             .arg(&subset_symbols),
         "verify-exported-symbols",
+    );
+
+    let nm_wrapper_dir = temp_dir("verify-symbols-wrapper");
+    let nm_wrapper = nm_wrapper_dir.join("nm");
+    let real_nm = env::var("NM").unwrap_or_else(|_| String::from("/usr/bin/nm"));
+    fs::write(
+        &nm_wrapper,
+        format!(
+            "#!/usr/bin/env bash\nset -euo pipefail\n\"{}\" \"$@\"\nprintf 'unexpected_extra_export T 0\\n'\n",
+            real_nm
+        ),
+    )
+    .expect("failed to write nm wrapper");
+    let mut wrapper_permissions = fs::metadata(&nm_wrapper)
+        .expect("failed to stat nm wrapper")
+        .permissions();
+    wrapper_permissions.set_mode(0o755);
+    fs::set_permissions(&nm_wrapper, wrapper_permissions)
+        .expect("failed to make nm wrapper executable");
+
+    let wrapped_path = match env::var_os("PATH") {
+        Some(path) => format!(
+            "{}:{}",
+            nm_wrapper_dir.display(),
+            PathBuf::from(path).display()
+        ),
+        None => nm_wrapper_dir.display().to_string(),
+    };
+    let wrapped_verify = Command::new("bash")
+        .arg(manifest_dir.join("scripts/verify-exported-symbols.sh"))
+        .arg(&stage_root)
+        .arg(&subset_symbols)
+        .env("PATH", wrapped_path)
+        .output()
+        .expect("failed to run wrapped verify-exported-symbols");
+    assert!(
+        !wrapped_verify.status.success(),
+        "verify-exported-symbols should reject unexpected non-yaml exports\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&wrapped_verify.stdout),
+        String::from_utf8_lossy(&wrapped_verify.stderr)
     );
 
     let compiler = compiler();

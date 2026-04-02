@@ -54,7 +54,7 @@ trap 'rm -rf "${tmpdir}"' EXIT
 
 extract_expected "${expected_file}" | sort -u > "${tmpdir}/expected"
 nm -D --defined-only --format=posix "${library}" \
-    | awk '/^yaml_/ { symbol = $1; sub(/@.*/, "", symbol); print symbol }' \
+    | awk 'NF > 0 { symbol = $1; sub(/@.*/, "", symbol); print symbol }' \
     | sort -u > "${tmpdir}/actual"
 
 if ! diff -u "${tmpdir}/expected" "${tmpdir}/actual"; then
