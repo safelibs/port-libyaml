@@ -252,7 +252,7 @@ fn helper_exports_accept_zero_capacity_states() {
 }
 
 #[test]
-fn staged_install_exports_only_phase_1_symbols_and_runs_upstream_version_test() {
+fn staged_install_exports_only_phase_2_symbols_and_runs_upstream_version_test() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let repo_root = manifest_dir
         .parent()
