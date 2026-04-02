@@ -16,9 +16,12 @@ yaml_document_initialize
 yaml_document_start_event_initialize
 yaml_event_delete
 yaml_emitter_delete
+yaml_emitter_close
+yaml_emitter_dump
 yaml_emitter_emit
 yaml_emitter_flush
 yaml_emitter_initialize
+yaml_emitter_open
 yaml_emitter_set_break
 yaml_emitter_set_canonical
 yaml_emitter_set_encoding

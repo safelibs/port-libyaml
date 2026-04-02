@@ -440,9 +440,6 @@ fn parser_reports_undefined_tag_handle_with_context() {
 #[test]
 fn staged_install_runs_phase3_c_probes_and_upstream_parser_tools() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let repo_root = manifest_dir
-        .parent()
-        .expect("safe crate should have a parent repository directory");
     let stage_root = temp_dir("stage-root-phase-3");
     let arch = multiarch();
     let stage_lib_dir = stage_root.join("usr/lib").join(&arch);
@@ -486,11 +483,11 @@ fn staged_install_runs_phase3_c_probes_and_upstream_parser_tools() {
         Command::new(&compiler)
             .arg("-c")
             .arg("-I")
-            .arg(repo_root.join("original/include"))
+            .arg(manifest_dir.join("include"))
             .arg(manifest_dir.join("tests/fixtures/event_api_exports.c"))
             .arg("-o")
             .arg(&event_api_object),
-        "compile event_api_exports.c against original header",
+        "compile event_api_exports.c against vendored header",
     );
     let event_api_link =
         temp_dir("event-api-exports-link-safe").join("event-api-exports-link-safe");
@@ -522,7 +519,7 @@ fn staged_install_runs_phase3_c_probes_and_upstream_parser_tools() {
         Command::new(&compiler)
             .arg("-I")
             .arg(stage_root.join("usr/include"))
-            .arg(repo_root.join("original/tests/run-parser.c"))
+            .arg(manifest_dir.join("compat/original-tests/run-parser.c"))
             .arg("-L")
             .arg(&stage_lib_dir)
             .arg(format!("-Wl,-rpath,{}", stage_lib_dir.display()))
@@ -539,10 +536,10 @@ fn staged_install_runs_phase3_c_probes_and_upstream_parser_tools() {
         "assert staged loader for run-parser",
     );
     let run_parser_output = Command::new(&run_parser_binary)
-        .arg(repo_root.join("original/examples/anchors.yaml"))
-        .arg(repo_root.join("original/examples/json.yaml"))
-        .arg(repo_root.join("original/examples/mapping.yaml"))
-        .arg(repo_root.join("original/examples/tags.yaml"))
+        .arg(manifest_dir.join("compat/examples/anchors.yaml"))
+        .arg(manifest_dir.join("compat/examples/json.yaml"))
+        .arg(manifest_dir.join("compat/examples/mapping.yaml"))
+        .arg(manifest_dir.join("compat/examples/tags.yaml"))
         .output()
         .expect("failed to run upstream run-parser");
     assert!(
@@ -569,7 +566,7 @@ fn staged_install_runs_phase3_c_probes_and_upstream_parser_tools() {
         Command::new(&compiler)
             .arg("-I")
             .arg(stage_root.join("usr/include"))
-            .arg(repo_root.join("original/tests/run-parser-test-suite.c"))
+            .arg(manifest_dir.join("compat/original-tests/run-parser-test-suite.c"))
             .arg("-L")
             .arg(&stage_lib_dir)
             .arg(format!("-Wl,-rpath,{}", stage_lib_dir.display()))

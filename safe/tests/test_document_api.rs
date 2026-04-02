@@ -286,9 +286,6 @@ fn parser_load_supports_chunked_generic_read_handlers() {
 #[test]
 fn staged_install_runs_phase4_c_probes_and_upstream_loader_tests() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let repo_root = manifest_dir
-        .parent()
-        .expect("safe crate should have a repository root parent");
     let stage_root = temp_dir("stage-root-phase-4");
     let arch = multiarch();
     let stage_lib_dir = stage_root.join("usr/lib").join(&arch);
@@ -332,11 +329,11 @@ fn staged_install_runs_phase4_c_probes_and_upstream_loader_tests() {
         Command::new(&compiler)
             .arg("-c")
             .arg("-I")
-            .arg(repo_root.join("original/include"))
+            .arg(manifest_dir.join("include"))
             .arg(manifest_dir.join("tests/fixtures/document_api_exports.c"))
             .arg("-o")
             .arg(&document_probe_object),
-        "compile document_api_exports.c against original header",
+        "compile document_api_exports.c against vendored header",
     );
     let document_probe_link = temp_dir("document-api-link-safe").join("document-api-link-safe");
     run_command(
@@ -367,7 +364,7 @@ fn staged_install_runs_phase4_c_probes_and_upstream_loader_tests() {
         Command::new(&compiler)
             .arg("-I")
             .arg(stage_root.join("usr/include"))
-            .arg(repo_root.join("original/tests/run-loader.c"))
+            .arg(manifest_dir.join("compat/original-tests/run-loader.c"))
             .arg("-L")
             .arg(&stage_lib_dir)
             .arg(format!("-Wl,-rpath,{}", stage_lib_dir.display()))
@@ -384,10 +381,10 @@ fn staged_install_runs_phase4_c_probes_and_upstream_loader_tests() {
         "assert staged loader for run-loader",
     );
     let run_loader_output = Command::new(&run_loader)
-        .arg(repo_root.join("original/examples/anchors.yaml"))
-        .arg(repo_root.join("original/examples/json.yaml"))
-        .arg(repo_root.join("original/examples/mapping.yaml"))
-        .arg(repo_root.join("original/examples/tags.yaml"))
+        .arg(manifest_dir.join("compat/examples/anchors.yaml"))
+        .arg(manifest_dir.join("compat/examples/json.yaml"))
+        .arg(manifest_dir.join("compat/examples/mapping.yaml"))
+        .arg(manifest_dir.join("compat/examples/tags.yaml"))
         .output()
         .expect("failed to run upstream run-loader");
     assert!(
@@ -413,7 +410,7 @@ fn staged_install_runs_phase4_c_probes_and_upstream_loader_tests() {
         Command::new(&compiler)
             .arg("-I")
             .arg(stage_root.join("usr/include"))
-            .arg(repo_root.join("original/tests/test-reader.c"))
+            .arg(manifest_dir.join("compat/original-tests/test-reader.c"))
             .arg("-L")
             .arg(&stage_lib_dir)
             .arg(format!("-Wl,-rpath,{}", stage_lib_dir.display()))

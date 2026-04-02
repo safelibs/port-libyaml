@@ -252,15 +252,11 @@ fn helper_exports_accept_zero_capacity_states() {
 }
 
 #[test]
-fn staged_install_exports_only_phase_2_symbols_and_runs_upstream_version_test() {
+fn staged_install_exports_full_manifest_and_runs_vendored_version_test() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let repo_root = manifest_dir
-        .parent()
-        .expect("safe crate should have a parent repository directory");
     let stage_root = temp_dir("stage-root");
     let arch = multiarch();
     let stage_lib_dir = stage_root.join("usr/lib").join(&arch);
-    let subset_symbols = manifest_dir.join("compat/upstream/exported-symbols-phase-01.txt");
 
     run_command(
         Command::new("bash")
@@ -278,8 +274,7 @@ fn staged_install_exports_only_phase_2_symbols_and_runs_upstream_version_test() 
     run_command(
         Command::new("bash")
             .arg(manifest_dir.join("scripts/verify-exported-symbols.sh"))
-            .arg(&stage_root)
-            .arg(&subset_symbols),
+            .arg(&stage_root),
         "verify-exported-symbols",
     );
 
@@ -312,7 +307,6 @@ fn staged_install_exports_only_phase_2_symbols_and_runs_upstream_version_test() 
     let wrapped_verify = Command::new("bash")
         .arg(manifest_dir.join("scripts/verify-exported-symbols.sh"))
         .arg(&stage_root)
-        .arg(&subset_symbols)
         .env("PATH", wrapped_path)
         .output()
         .expect("failed to run wrapped verify-exported-symbols");
@@ -327,7 +321,7 @@ fn staged_install_exports_only_phase_2_symbols_and_runs_upstream_version_test() 
     let binary = temp_dir("upstream-test-version").join("test-version");
     let compile_status = Command::new(&compiler)
         .arg("-std=c11")
-        .arg(repo_root.join("original/tests/test-version.c"))
+        .arg(manifest_dir.join("compat/original-tests/test-version.c"))
         .arg("-I")
         .arg(stage_root.join("usr/include"))
         .arg("-L")

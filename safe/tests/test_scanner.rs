@@ -49,17 +49,14 @@ fn scans_simple_block_mapping_tokens() {
 #[test]
 fn scans_checked_in_examples_without_failure() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let repo_root = manifest_dir
-        .parent()
-        .expect("safe crate should have a repository root parent");
 
     for relative in [
-        "original/examples/anchors.yaml",
-        "original/examples/json.yaml",
-        "original/examples/mapping.yaml",
-        "original/examples/tags.yaml",
+        "compat/examples/anchors.yaml",
+        "compat/examples/json.yaml",
+        "compat/examples/mapping.yaml",
+        "compat/examples/tags.yaml",
     ] {
-        let input = fs::read(repo_root.join(relative)).expect("failed to read example");
+        let input = fs::read(manifest_dir.join(relative)).expect("failed to read example");
         let tokens = scan_types(&input).unwrap_or_else(|error| {
             panic!("{relative}: scanner failed: {error}");
         });
@@ -78,9 +75,6 @@ fn scans_checked_in_examples_without_failure() {
 #[test]
 fn staged_install_runs_phase2_c_probes_and_upstream_run_scanner() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let repo_root = manifest_dir
-        .parent()
-        .expect("safe crate should have a parent repository directory");
     let stage_root = temp_dir("stage-root-phase-2");
     let arch = multiarch();
     let stage_lib_dir = stage_root.join("usr/lib").join(&arch);
@@ -125,11 +119,11 @@ fn staged_install_runs_phase2_c_probes_and_upstream_run_scanner() {
         Command::new(&compiler)
             .arg("-c")
             .arg("-I")
-            .arg(repo_root.join("original/include"))
+            .arg(manifest_dir.join("include"))
             .arg(manifest_dir.join("tests/fixtures/parser_input_api.c"))
             .arg("-o")
             .arg(&parser_input_object),
-        "compile parser_input_api.c against original header",
+        "compile parser_input_api.c against vendored header",
     );
     let parser_input_link =
         temp_dir("parser-input-api-link-safe").join("parser-input-api-link-safe");
@@ -189,11 +183,11 @@ fn staged_install_runs_phase2_c_probes_and_upstream_run_scanner() {
         Command::new(&compiler)
             .arg("-c")
             .arg("-I")
-            .arg(repo_root.join("original/include"))
+            .arg(manifest_dir.join("include"))
             .arg(manifest_dir.join("tests/fixtures/private_parser_exports.c"))
             .arg("-o")
             .arg(&private_exports_object),
-        "compile private_parser_exports.c against original header",
+        "compile private_parser_exports.c against vendored header",
     );
     let private_exports_link =
         temp_dir("private-parser-exports-link-safe").join("private-parser-exports-link-safe");
@@ -225,7 +219,7 @@ fn staged_install_runs_phase2_c_probes_and_upstream_run_scanner() {
         Command::new(&compiler)
             .arg("-I")
             .arg(stage_root.join("usr/include"))
-            .arg(repo_root.join("original/tests/run-scanner.c"))
+            .arg(manifest_dir.join("compat/original-tests/run-scanner.c"))
             .arg("-L")
             .arg(&stage_lib_dir)
             .arg(format!("-Wl,-rpath,{}", stage_lib_dir.display()))
@@ -242,10 +236,10 @@ fn staged_install_runs_phase2_c_probes_and_upstream_run_scanner() {
         "assert staged loader for run-scanner",
     );
     let run_scanner_output = Command::new(&run_scanner_binary)
-        .arg(repo_root.join("original/examples/anchors.yaml"))
-        .arg(repo_root.join("original/examples/json.yaml"))
-        .arg(repo_root.join("original/examples/mapping.yaml"))
-        .arg(repo_root.join("original/examples/tags.yaml"))
+        .arg(manifest_dir.join("compat/examples/anchors.yaml"))
+        .arg(manifest_dir.join("compat/examples/json.yaml"))
+        .arg(manifest_dir.join("compat/examples/mapping.yaml"))
+        .arg(manifest_dir.join("compat/examples/tags.yaml"))
         .output()
         .expect("failed to run upstream run-scanner");
     assert!(

@@ -5,6 +5,7 @@ mod macros;
 pub mod alloc;
 mod api;
 mod document;
+mod dumper;
 mod emitter;
 mod event;
 pub mod ffi;
@@ -57,6 +58,7 @@ pub use document::{
     yaml_document_append_mapping_pair, yaml_document_append_sequence_item, yaml_document_delete,
     yaml_document_get_node, yaml_document_get_root_node, yaml_document_initialize,
 };
+pub use dumper::{yaml_emitter_close, yaml_emitter_dump, yaml_emitter_open};
 pub use event::{
     yaml_alias_event_initialize, yaml_document_end_event_initialize,
     yaml_document_start_event_initialize, yaml_event_delete, yaml_mapping_end_event_initialize,

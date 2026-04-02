@@ -389,9 +389,6 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
     ensure_rg_wrapper_accepts_doubly_escaped_parentheses();
 
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let repo_root = manifest_dir
-        .parent()
-        .expect("safe crate should have a parent repository directory");
     let stage_root = temp_dir("stage-root-phase-5");
     let arch = multiarch();
     let stage_lib_dir = stage_root.join("usr/lib").join(&arch);
@@ -467,11 +464,11 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
         Command::new(&compiler)
             .arg("-c")
             .arg("-I")
-            .arg(repo_root.join("original/include"))
+            .arg(manifest_dir.join("include"))
             .arg(manifest_dir.join("tests/fixtures/emitter_api_exports.c"))
             .arg("-o")
             .arg(&emitter_api_object),
-        "compile emitter_api_exports.c against original header",
+        "compile emitter_api_exports.c against vendored header",
     );
     let emitter_api_link = temp_dir("emitter-api-exports-link-safe").join("emitter-api-exports-link-safe");
     run_command(
@@ -497,14 +494,14 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
         "run emitter_api_exports object-link mode",
     );
 
-    let anchors_yaml = repo_root.join("original/examples/anchors.yaml");
-    let json_yaml = repo_root.join("original/examples/json.yaml");
+    let anchors_yaml = manifest_dir.join("compat/examples/anchors.yaml");
+    let json_yaml = manifest_dir.join("compat/examples/json.yaml");
     let run_emitter_binary = temp_dir("run-emitter-safe").join("run-emitter-safe");
     compile_upstream_tool(
         &compiler,
         stage_root.join("usr/include"),
         &stage_lib_dir,
-        repo_root.join("original/tests/run-emitter.c"),
+        manifest_dir.join("compat/original-tests/run-emitter.c"),
         &run_emitter_binary,
         "compile upstream run-emitter.c",
     );
@@ -539,7 +536,7 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
         &compiler,
         stage_root.join("usr/include"),
         &stage_lib_dir,
-        repo_root.join("original/tests/run-emitter-test-suite.c"),
+        manifest_dir.join("compat/original-tests/run-emitter-test-suite.c"),
         &run_emitter_suite_binary,
         "compile upstream run-emitter-test-suite.c",
     );
@@ -562,7 +559,7 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
         &compiler,
         stage_root.join("usr/include"),
         &stage_lib_dir,
-        repo_root.join("original/tests/example-reformatter.c"),
+        manifest_dir.join("compat/original-tests/example-reformatter.c"),
         &reformatter_binary,
         "compile upstream example-reformatter.c",
     );
@@ -599,7 +596,7 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
         &compiler,
         stage_root.join("usr/include"),
         &stage_lib_dir,
-        repo_root.join("original/tests/example-deconstructor.c"),
+        manifest_dir.join("compat/original-tests/example-deconstructor.c"),
         &deconstructor_binary,
         "compile upstream example-deconstructor.c",
     );
