@@ -2,3 +2,13 @@
 /safe/out/
 /safe/.cargo-home/
 /safe/doc/html/
+/safe/debian/.cargo-home/
+/safe/debian/.debhelper/
+/safe/debian/debhelper-build-stamp
+/safe/debian/files
+/safe/debian/*.debhelper.log
+/safe/debian/*.substvars
+/safe/debian/libyaml-0-2/
+/safe/debian/libyaml-dev/
+/safe/debian/libyaml-doc/
+/safe/debian/tmp/

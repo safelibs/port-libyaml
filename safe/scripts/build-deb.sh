@@ -21,9 +21,29 @@ cleanup_root_artifacts() {
     fi
 }
 
+cleanup_debian_artifacts() {
+    shopt -s nullglob
+    local paths=(
+        "${safe_dir}"/debian/.cargo-home
+        "${safe_dir}"/debian/.debhelper
+        "${safe_dir}"/debian/debhelper-build-stamp
+        "${safe_dir}"/debian/files
+        "${safe_dir}"/debian/*.debhelper.log
+        "${safe_dir}"/debian/*.substvars
+        "${safe_dir}"/debian/libyaml-0-2
+        "${safe_dir}"/debian/libyaml-dev
+        "${safe_dir}"/debian/libyaml-doc
+        "${safe_dir}"/debian/tmp
+    )
+    if ((${#paths[@]} > 0)); then
+        rm -rf -- "${paths[@]}"
+    fi
+}
+
 mkdir -p "${out_dir}"
 rm -rf "${out_dir:?}/"*
 cleanup_root_artifacts
+cleanup_debian_artifacts
 
 (
     cd "${safe_dir}"
@@ -55,3 +75,4 @@ cp -f -- "${dev_debs[0]}" "${out_dir}/libyaml-dev.deb"
 cp -f -- "${doc_debs[0]}" "${out_dir}/libyaml-doc.deb"
 
 cleanup_root_artifacts
+cleanup_debian_artifacts
