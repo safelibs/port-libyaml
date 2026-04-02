@@ -24,16 +24,21 @@ macro_rules! BUFFER_DEL {
 }
 
 macro_rules! STRING_INIT {
-    ($string:expr) => {{
-        $string.start = crate::yaml_malloc(16) as *mut crate::types::yaml_char_t;
+    ($context:expr, $string:expr) => {{
+        $string.start = crate::yaml_malloc(crate::INITIAL_STRING_SIZE)
+            as *mut crate::types::yaml_char_t;
         $string.pointer = $string.start;
         $string.end = if $string.start.is_null() {
             core::ptr::null_mut()
         } else {
-            $string.start.wrapping_add(16)
+            $string.start.wrapping_add(crate::INITIAL_STRING_SIZE)
         };
-        if !$string.start.is_null() {
-            crate::alloc::zero_bytes($string.start.cast(), 16);
+        if $string.start.is_null() {
+            $context.error = crate::types::yaml_error_type_t::YAML_MEMORY_ERROR;
+            crate::FAIL
+        } else {
+            crate::alloc::zero_bytes($string.start.cast(), crate::INITIAL_STRING_SIZE);
+            crate::OK
         }
     }};
 }
@@ -48,15 +53,23 @@ macro_rules! STRING_DEL {
 }
 
 macro_rules! STRING_EXTEND {
-    ($string:expr) => {
+    ($context:expr, $string:expr) => {{
         if !$string.end.is_null() && $string.pointer.wrapping_add(5) >= $string.end {
-            crate::yaml_string_extend(
+            if crate::yaml_string_extend(
                 core::ptr::addr_of_mut!($string.start),
                 core::ptr::addr_of_mut!($string.pointer),
                 core::ptr::addr_of_mut!($string.end),
-            );
+            ) == crate::FAIL
+            {
+                $context.error = crate::types::yaml_error_type_t::YAML_MEMORY_ERROR;
+                crate::FAIL
+            } else {
+                crate::OK
+            }
+        } else {
+            crate::OK
         }
-    };
+    }};
 }
 
 macro_rules! CLEAR {
@@ -72,16 +85,22 @@ macro_rules! CLEAR {
 }
 
 macro_rules! JOIN {
-    ($string_a:expr, $string_b:expr) => {{
-        crate::yaml_string_join(
+    ($context:expr, $string_a:expr, $string_b:expr) => {{
+        if crate::yaml_string_join(
             core::ptr::addr_of_mut!($string_a.start),
             core::ptr::addr_of_mut!($string_a.pointer),
             core::ptr::addr_of_mut!($string_a.end),
             core::ptr::addr_of_mut!($string_b.start),
             core::ptr::addr_of_mut!($string_b.pointer),
             core::ptr::addr_of_mut!($string_b.end),
-        );
-        $string_b.pointer = $string_b.start;
+        ) == crate::FAIL
+        {
+            $context.error = crate::types::yaml_error_type_t::YAML_MEMORY_ERROR;
+            crate::FAIL
+        } else {
+            $string_b.pointer = $string_b.start;
+            crate::OK
+        }
     }};
 }
 
@@ -373,22 +392,32 @@ macro_rules! STACK_EMPTY {
 }
 
 macro_rules! PUSH {
-    (do $stack:expr, $push:expr) => {{
+    (do $context:expr, $stack:expr, $push:expr) => {{
         if $stack.top == $stack.end {
-            crate::yaml_stack_extend(
+            if crate::yaml_stack_extend(
                 core::ptr::addr_of_mut!($stack.start).cast(),
                 core::ptr::addr_of_mut!($stack.top).cast(),
                 core::ptr::addr_of_mut!($stack.end).cast(),
-            );
+            ) == crate::FAIL
+            {
+                $context.error = crate::types::yaml_error_type_t::YAML_MEMORY_ERROR;
+                crate::FAIL
+            } else {
+                $push;
+                $stack.top = $stack.top.wrapping_add(1);
+                crate::OK
+            }
+        } else {
+            $push;
+            $stack.top = $stack.top.wrapping_add(1);
+            crate::OK
         }
-        $push;
-        $stack.top = $stack.top.wrapping_add(1);
     }};
-    ($stack:expr, *$value:expr) => {
-        PUSH!(do $stack, core::ptr::copy_nonoverlapping($value, $stack.top, 1))
+    ($context:expr, $stack:expr, *$value:expr) => {
+        PUSH!(do $context, $stack, core::ptr::copy_nonoverlapping($value, $stack.top, 1))
     };
-    ($stack:expr, $value:expr) => {
-        PUSH!(do $stack, core::ptr::write($stack.top, $value))
+    ($context:expr, $stack:expr, $value:expr) => {
+        PUSH!(do $context, $stack, core::ptr::write($stack.top, $value))
     };
 }
 
@@ -433,23 +462,33 @@ macro_rules! QUEUE_EMPTY {
 }
 
 macro_rules! ENQUEUE {
-    (do $queue:expr, $enqueue:expr) => {{
+    (do $context:expr, $queue:expr, $enqueue:expr) => {{
         if $queue.tail == $queue.end {
-            crate::yaml_queue_extend(
+            if crate::yaml_queue_extend(
                 core::ptr::addr_of_mut!($queue.start).cast(),
                 core::ptr::addr_of_mut!($queue.head).cast(),
                 core::ptr::addr_of_mut!($queue.tail).cast(),
                 core::ptr::addr_of_mut!($queue.end).cast(),
-            );
+            ) == crate::FAIL
+            {
+                $context.error = crate::types::yaml_error_type_t::YAML_MEMORY_ERROR;
+                crate::FAIL
+            } else {
+                $enqueue;
+                $queue.tail = $queue.tail.wrapping_add(1);
+                crate::OK
+            }
+        } else {
+            $enqueue;
+            $queue.tail = $queue.tail.wrapping_add(1);
+            crate::OK
         }
-        $enqueue;
-        $queue.tail = $queue.tail.wrapping_add(1);
     }};
-    ($queue:expr, *$value:expr) => {
-        ENQUEUE!(do $queue, core::ptr::copy_nonoverlapping($value, $queue.tail, 1))
+    ($context:expr, $queue:expr, *$value:expr) => {
+        ENQUEUE!(do $context, $queue, core::ptr::copy_nonoverlapping($value, $queue.tail, 1))
     };
-    ($queue:expr, $value:expr) => {
-        ENQUEUE!(do $queue, core::ptr::write($queue.tail, $value))
+    ($context:expr, $queue:expr, $value:expr) => {
+        ENQUEUE!(do $context, $queue, core::ptr::write($queue.tail, $value))
     };
 }
 
@@ -464,23 +503,40 @@ macro_rules! DEQUEUE {
 }
 
 macro_rules! QUEUE_INSERT {
-    ($queue:expr, $index:expr, $value:expr) => {{
+    ($context:expr, $queue:expr, $index:expr, $value:expr) => {{
         if $queue.tail == $queue.end {
-            crate::yaml_queue_extend(
+            if crate::yaml_queue_extend(
                 core::ptr::addr_of_mut!($queue.start).cast(),
                 core::ptr::addr_of_mut!($queue.head).cast(),
                 core::ptr::addr_of_mut!($queue.tail).cast(),
                 core::ptr::addr_of_mut!($queue.end).cast(),
+            ) == crate::FAIL
+            {
+                $context.error = crate::types::yaml_error_type_t::YAML_MEMORY_ERROR;
+                crate::FAIL
+            } else {
+                crate::alloc::move_bytes(
+                    ($queue.head).wrapping_add($index as usize).wrapping_add(1).cast(),
+                    ($queue.head).wrapping_add($index as usize).cast(),
+                    (crate::PointerExt::c_offset_from($queue.tail, $queue.head) as usize)
+                        .saturating_sub($index as usize)
+                        .saturating_mul(core::mem::size_of::<crate::types::yaml_token_t>()),
+                );
+                *($queue.head).wrapping_add($index as usize) = $value;
+                $queue.tail = $queue.tail.wrapping_add(1);
+                crate::OK
+            }
+        } else {
+            crate::alloc::move_bytes(
+                ($queue.head).wrapping_add($index as usize).wrapping_add(1).cast(),
+                ($queue.head).wrapping_add($index as usize).cast(),
+                (crate::PointerExt::c_offset_from($queue.tail, $queue.head) as usize)
+                    .saturating_sub($index as usize)
+                    .saturating_mul(core::mem::size_of::<crate::types::yaml_token_t>()),
             );
+            *($queue.head).wrapping_add($index as usize) = $value;
+            $queue.tail = $queue.tail.wrapping_add(1);
+            crate::OK
         }
-        crate::alloc::move_bytes(
-            ($queue.head).wrapping_add($index as usize).wrapping_add(1).cast(),
-            ($queue.head).wrapping_add($index as usize).cast(),
-            (crate::PointerExt::c_offset_from($queue.tail, $queue.head) as usize)
-                .saturating_sub($index as usize)
-                .saturating_mul(core::mem::size_of::<crate::types::yaml_token_t>()),
-        );
-        *($queue.head).wrapping_add($index as usize) = $value;
-        $queue.tail = $queue.tail.wrapping_add(1);
     }};
 }

@@ -43,8 +43,8 @@ pub use api::{
     yaml_parser_set_input_file, yaml_parser_set_input_string, yaml_token_delete,
 };
 pub use internal::utf::{
-    INITIAL_QUEUE_SIZE, INITIAL_STACK_SIZE, INPUT_BUFFER_SIZE, INPUT_RAW_BUFFER_SIZE,
-    MAX_FILE_SIZE, OUTPUT_BUFFER_SIZE, OUTPUT_RAW_BUFFER_SIZE,
+    INITIAL_QUEUE_SIZE, INITIAL_STACK_SIZE, INITIAL_STRING_SIZE, INPUT_BUFFER_SIZE,
+    INPUT_RAW_BUFFER_SIZE, MAX_FILE_SIZE, OUTPUT_BUFFER_SIZE, OUTPUT_RAW_BUFFER_SIZE,
 };
 pub use reader::yaml_parser_update_buffer;
 pub use scanner::{yaml_parser_fetch_more_tokens, yaml_parser_scan};
