@@ -1,13 +1,12 @@
 use core::ffi::{c_int, c_void};
 use core::mem::size_of;
-use core::ptr;
 
 use crate::alloc;
 use crate::ffi;
 use crate::types::{
-    yaml_char_t, yaml_encoding_t, yaml_error_type_t, yaml_file_t, yaml_mark_t, yaml_parser_state_t,
-    yaml_parser_t, yaml_read_handler_t, yaml_simple_key_t, yaml_tag_directive_t, yaml_token_t,
-    yaml_token_type_t,
+    yaml_break_t, yaml_emitter_state_t, yaml_emitter_t, yaml_encoding_t, yaml_error_type_t,
+    yaml_file_t, yaml_mark_t, yaml_parser_state_t, yaml_parser_t, yaml_read_handler_t,
+    yaml_simple_key_t, yaml_tag_directive_t, yaml_token_t, yaml_token_type_t, yaml_write_handler_t,
 };
 pub(crate) use crate::{
     yaml_free, yaml_malloc, yaml_queue_extend, yaml_stack_extend, yaml_string_extend,
@@ -18,6 +17,7 @@ use crate::{PointerExt, FAIL, OK};
 unsafe extern "C" {
     fn fread(ptr: *mut c_void, size: usize, nmemb: usize, stream: *mut c_void) -> usize;
     fn ferror(stream: *mut c_void) -> c_int;
+    fn fwrite(ptr: *const c_void, size: usize, nmemb: usize, stream: *mut c_void) -> usize;
 }
 
 #[inline]
@@ -28,6 +28,11 @@ unsafe fn zero_parser(parser: *mut yaml_parser_t) {
 #[inline]
 unsafe fn zero_token(token: *mut yaml_token_t) {
     alloc::zero_bytes(token.cast(), size_of::<yaml_token_t>());
+}
+
+#[inline]
+unsafe fn zero_emitter(emitter: *mut yaml_emitter_t) {
+    alloc::zero_bytes(emitter.cast(), size_of::<yaml_emitter_t>());
 }
 
 unsafe extern "C" fn yaml_string_read_handler(
@@ -85,6 +90,58 @@ unsafe extern "C" fn yaml_file_read_handler(
         } else {
             OK
         }
+    }
+}
+
+unsafe extern "C" fn yaml_string_write_handler(
+    data: *mut c_void,
+    buffer: *mut u8,
+    size: usize,
+) -> c_int {
+    let emitter = data.cast::<yaml_emitter_t>();
+    if emitter.is_null() {
+        return FAIL;
+    }
+
+    let written = (*emitter).output.string.size_written;
+    if written.is_null() {
+        return FAIL;
+    }
+
+    let available = (*emitter).output.string.size.saturating_sub(*written);
+    if available < size {
+        alloc::copy_bytes(
+            (*emitter).output.string.buffer.add(*written).cast(),
+            buffer.cast(),
+            available,
+        );
+        *written = (*emitter).output.string.size;
+        return FAIL;
+    }
+
+    alloc::copy_bytes(
+        (*emitter).output.string.buffer.add(*written).cast(),
+        buffer.cast(),
+        size,
+    );
+    *written = (*written).saturating_add(size);
+    OK
+}
+
+unsafe extern "C" fn yaml_file_write_handler(
+    data: *mut c_void,
+    buffer: *mut u8,
+    size: usize,
+) -> c_int {
+    let emitter = data.cast::<yaml_emitter_t>();
+    if emitter.is_null() {
+        return FAIL;
+    }
+
+    if fwrite(buffer.cast(), 1, size, (*emitter).output.file.cast()) == size {
+        OK
+    } else {
+        FAIL
     }
 }
 
@@ -227,6 +284,191 @@ pub unsafe extern "C" fn yaml_parser_set_encoding(
             return;
         }
         (*parser).encoding = encoding;
+    });
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn yaml_emitter_initialize(emitter: *mut yaml_emitter_t) -> c_int {
+    ffi::int_boundary(|| unsafe {
+        if emitter.is_null() {
+            return FAIL;
+        }
+
+        zero_emitter(emitter);
+
+        if BUFFER_INIT!((*emitter), (*emitter).buffer, crate::OUTPUT_BUFFER_SIZE) == FAIL {
+            return FAIL;
+        }
+        if BUFFER_INIT!((*emitter), (*emitter).raw_buffer, crate::OUTPUT_RAW_BUFFER_SIZE) == FAIL {
+            BUFFER_DEL!((*emitter).buffer);
+            return FAIL;
+        }
+        if STACK_INIT!((*emitter).states, yaml_emitter_state_t) == FAIL
+            || QUEUE_INIT!((*emitter).events, crate::types::yaml_event_t) == FAIL
+            || STACK_INIT!((*emitter).indents, c_int) == FAIL
+            || STACK_INIT!((*emitter).tag_directives, yaml_tag_directive_t) == FAIL
+        {
+            (*emitter).error = yaml_error_type_t::YAML_MEMORY_ERROR;
+            BUFFER_DEL!((*emitter).buffer);
+            BUFFER_DEL!((*emitter).raw_buffer);
+            STACK_DEL!((*emitter).states);
+            QUEUE_DEL!((*emitter).events);
+            STACK_DEL!((*emitter).indents);
+            STACK_DEL!((*emitter).tag_directives);
+            return FAIL;
+        }
+
+        OK
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn yaml_emitter_delete(emitter: *mut yaml_emitter_t) {
+    ffi::void_boundary(|| unsafe {
+        if emitter.is_null() {
+            return;
+        }
+
+        BUFFER_DEL!((*emitter).buffer);
+        BUFFER_DEL!((*emitter).raw_buffer);
+        STACK_DEL!((*emitter).states);
+        while !QUEUE_EMPTY!((*emitter).events) {
+            let event = core::ptr::addr_of_mut!(DEQUEUE!((*emitter).events));
+            crate::yaml_event_delete(event);
+        }
+        QUEUE_DEL!((*emitter).events);
+        STACK_DEL!((*emitter).indents);
+        while !STACK_EMPTY!((*emitter).tag_directives) {
+            let tag_directive = POP!((*emitter).tag_directives);
+            crate::yaml_free(tag_directive.handle.cast());
+            crate::yaml_free(tag_directive.prefix.cast());
+        }
+        STACK_DEL!((*emitter).tag_directives);
+        crate::yaml_free((*emitter).anchors.cast());
+
+        zero_emitter(emitter);
+    });
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn yaml_emitter_set_output_string(
+    emitter: *mut yaml_emitter_t,
+    output: *mut u8,
+    size: usize,
+    size_written: *mut usize,
+) {
+    ffi::void_boundary(|| unsafe {
+        if emitter.is_null() || output.is_null() || size_written.is_null() {
+            return;
+        }
+        if (*emitter).write_handler.is_some() {
+            return;
+        }
+
+        (*emitter).write_handler = Some(yaml_string_write_handler);
+        (*emitter).write_handler_data = emitter.cast();
+        (*emitter).output.string.buffer = output;
+        (*emitter).output.string.size = size;
+        (*emitter).output.string.size_written = size_written;
+        *size_written = 0;
+    });
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn yaml_emitter_set_output_file(
+    emitter: *mut yaml_emitter_t,
+    file: *mut yaml_file_t,
+) {
+    ffi::void_boundary(|| unsafe {
+        if emitter.is_null() || file.is_null() || (*emitter).write_handler.is_some() {
+            return;
+        }
+
+        (*emitter).write_handler = Some(yaml_file_write_handler);
+        (*emitter).write_handler_data = emitter.cast();
+        (*emitter).output.file = file;
+    });
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn yaml_emitter_set_output(
+    emitter: *mut yaml_emitter_t,
+    handler: yaml_write_handler_t,
+    data: *mut c_void,
+) {
+    ffi::void_boundary(|| unsafe {
+        if emitter.is_null() || handler.is_none() || (*emitter).write_handler.is_some() {
+            return;
+        }
+
+        (*emitter).write_handler = handler;
+        (*emitter).write_handler_data = data;
+    });
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn yaml_emitter_set_encoding(
+    emitter: *mut yaml_emitter_t,
+    encoding: yaml_encoding_t,
+) {
+    ffi::void_boundary(|| unsafe {
+        if emitter.is_null() || (*emitter).encoding != yaml_encoding_t::YAML_ANY_ENCODING {
+            return;
+        }
+        (*emitter).encoding = encoding;
+    });
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn yaml_emitter_set_canonical(emitter: *mut yaml_emitter_t, canonical: c_int) {
+    ffi::void_boundary(|| unsafe {
+        if emitter.is_null() {
+            return;
+        }
+        (*emitter).canonical = (canonical != 0) as c_int;
+    });
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn yaml_emitter_set_indent(emitter: *mut yaml_emitter_t, indent: c_int) {
+    ffi::void_boundary(|| unsafe {
+        if emitter.is_null() {
+            return;
+        }
+        (*emitter).best_indent = if 1 < indent && indent < 10 { indent } else { 2 };
+    });
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn yaml_emitter_set_width(emitter: *mut yaml_emitter_t, width: c_int) {
+    ffi::void_boundary(|| unsafe {
+        if emitter.is_null() {
+            return;
+        }
+        (*emitter).best_width = if width >= 0 { width } else { -1 };
+    });
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn yaml_emitter_set_unicode(emitter: *mut yaml_emitter_t, unicode: c_int) {
+    ffi::void_boundary(|| unsafe {
+        if emitter.is_null() {
+            return;
+        }
+        (*emitter).unicode = (unicode != 0) as c_int;
+    });
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn yaml_emitter_set_break(
+    emitter: *mut yaml_emitter_t,
+    line_break: yaml_break_t,
+) {
+    ffi::void_boundary(|| unsafe {
+        if emitter.is_null() {
+            return;
+        }
+        (*emitter).line_break = line_break;
     });
 }
 

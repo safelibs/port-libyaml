@@ -5,12 +5,14 @@ mod macros;
 pub mod alloc;
 mod api;
 mod document;
+mod emitter;
 mod event;
 pub mod ffi;
 mod loader;
 mod parser;
 mod reader;
 mod scanner;
+mod writer;
 pub mod types;
 
 mod internal {
@@ -43,8 +45,12 @@ pub(crate) use crate::types::yaml_token_type_t::{
 };
 
 pub use api::{
-    yaml_parser_delete, yaml_parser_initialize, yaml_parser_set_encoding, yaml_parser_set_input,
-    yaml_parser_set_input_file, yaml_parser_set_input_string, yaml_token_delete,
+    yaml_emitter_delete, yaml_emitter_initialize, yaml_emitter_set_break,
+    yaml_emitter_set_canonical, yaml_emitter_set_encoding, yaml_emitter_set_indent,
+    yaml_emitter_set_output, yaml_emitter_set_output_file, yaml_emitter_set_output_string,
+    yaml_emitter_set_unicode, yaml_emitter_set_width, yaml_parser_delete, yaml_parser_initialize,
+    yaml_parser_set_encoding, yaml_parser_set_input, yaml_parser_set_input_file,
+    yaml_parser_set_input_string, yaml_token_delete,
 };
 pub use document::{
     yaml_document_add_mapping, yaml_document_add_scalar, yaml_document_add_sequence,
@@ -63,9 +69,11 @@ pub use internal::utf::{
     INPUT_RAW_BUFFER_SIZE, MAX_FILE_SIZE, OUTPUT_BUFFER_SIZE, OUTPUT_RAW_BUFFER_SIZE,
 };
 pub use loader::yaml_parser_load;
+pub use emitter::yaml_emitter_emit;
 pub use parser::yaml_parser_parse;
 pub use reader::yaml_parser_update_buffer;
 pub use scanner::{yaml_parser_fetch_more_tokens, yaml_parser_scan};
+pub use writer::yaml_emitter_flush;
 pub use types::*;
 
 pub(crate) const OK: c_int = 1;
@@ -110,6 +118,11 @@ pub(crate) mod externs {
     #[inline]
     pub unsafe fn strcmp(lhs: *const c_char, rhs: *const c_char) -> c_int {
         alloc::compare_c_strings(lhs, rhs)
+    }
+
+    #[inline]
+    pub unsafe fn strncmp(lhs: *const c_char, rhs: *const c_char, size: usize) -> c_int {
+        alloc::compare_n_c_strings(lhs, rhs, size)
     }
 
     #[inline]

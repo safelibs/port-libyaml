@@ -7,6 +7,7 @@ unsafe extern "C" {
     fn free(ptr: *mut c_void);
     fn strdup(input: *const c_char) -> *mut c_char;
     fn strcmp(lhs: *const c_char, rhs: *const c_char) -> c_int;
+    fn strncmp(lhs: *const c_char, rhs: *const c_char, size: usize) -> c_int;
     fn strlen(input: *const c_char) -> usize;
     fn memcmp(lhs: *const c_void, rhs: *const c_void, size: usize) -> c_int;
     fn memset(dest: *mut c_void, value: c_int, size: usize) -> *mut c_void;
@@ -72,4 +73,9 @@ pub unsafe fn c_string_len(input: *const c_char) -> usize {
 #[inline]
 pub unsafe fn compare_c_strings(lhs: *const c_char, rhs: *const c_char) -> c_int {
     strcmp(lhs, rhs)
+}
+
+#[inline]
+pub unsafe fn compare_n_c_strings(lhs: *const c_char, rhs: *const c_char, size: usize) -> c_int {
+    strncmp(lhs, rhs, size)
 }

@@ -43,6 +43,16 @@ macro_rules! STRING_INIT {
     }};
 }
 
+macro_rules! STRING_ASSIGN {
+    ($string:expr, $length:expr) => {
+        crate::yaml::yaml_string_t {
+            start: $string,
+            end: $string.wrapping_add($length),
+            pointer: $string,
+        }
+    };
+}
+
 macro_rules! STRING_DEL {
     ($string:expr) => {{
         crate::yaml_free($string.start.cast());
