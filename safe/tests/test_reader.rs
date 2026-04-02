@@ -5,8 +5,8 @@ use std::slice;
 
 use yaml::{
     yaml_encoding_t, yaml_error_type_t, yaml_parser_delete, yaml_parser_initialize,
-    yaml_parser_set_encoding, yaml_parser_set_input, yaml_parser_set_input_string,
-    yaml_parser_t, yaml_parser_update_buffer, MAX_FILE_SIZE,
+    yaml_parser_set_encoding, yaml_parser_set_input, yaml_parser_set_input_string, yaml_parser_t,
+    yaml_parser_update_buffer, MAX_FILE_SIZE,
 };
 
 #[repr(C)]
@@ -90,7 +90,11 @@ fn utf8_validation_matrix_matches_reader_accept_reject_rules() {
         if *expect_success {
             assert_eq!(outcome.error, yaml_error_type_t::YAML_NO_ERROR, "{title}");
         } else {
-            assert_eq!(outcome.error, yaml_error_type_t::YAML_READER_ERROR, "{title}");
+            assert_eq!(
+                outcome.error,
+                yaml_error_type_t::YAML_READER_ERROR,
+                "{title}"
+            );
             assert!(
                 outcome.problem.is_some(),
                 "{title}: missing reader problem description"
@@ -131,10 +135,11 @@ fn bom_detection_and_utf16_decoding_match_upstream_examples() {
 #[test]
 fn generic_input_handler_with_explicit_encoding_decodes_utf16le_without_bom() {
     let input = [
-        b'H', 0x00, b'i', 0x00, b' ', 0x00, b'i', 0x00, b's', 0x00, b' ', 0x00, 0x1F, 0x04,
-        0x40, 0x04, 0x38, 0x04, 0x32, 0x04, 0x35, 0x04, 0x42, 0x04,
+        b'H', 0x00, b'i', 0x00, b' ', 0x00, b'i', 0x00, b's', 0x00, b' ', 0x00, 0x1F, 0x04, 0x40,
+        0x04, 0x38, 0x04, 0x32, 0x04, 0x35, 0x04, 0x42, 0x04,
     ];
-    let outcome = read_with_generic_handler(&input, 1, Some(yaml_encoding_t::YAML_UTF16LE_ENCODING));
+    let outcome =
+        read_with_generic_handler(&input, 1, Some(yaml_encoding_t::YAML_UTF16LE_ENCODING));
     assert!(outcome.ok, "{:?}", outcome.problem);
     assert_eq!(
         outcome.decoded,
@@ -221,7 +226,11 @@ unsafe fn snapshot(parser: &yaml_parser_t, ok: bool) -> ReaderOutcome {
     let problem = if parser.problem.is_null() {
         None
     } else {
-        Some(CStr::from_ptr(parser.problem).to_string_lossy().into_owned())
+        Some(
+            CStr::from_ptr(parser.problem)
+                .to_string_lossy()
+                .into_owned(),
+        )
     };
 
     let decoded = if ok {

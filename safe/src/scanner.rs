@@ -196,10 +196,7 @@ unsafe fn fail_tag_parts(handle: *mut yaml_char_t, suffix: *mut yaml_char_t) -> 
 /// An application must not alternate the calls of yaml_parser_scan() with the
 /// calls of yaml_parser_parse() or yaml_parser_load(). Doing this will break
 /// the parser.
-unsafe fn yaml_parser_scan_impl(
-    parser: *mut yaml_parser_t,
-    token: *mut yaml_token_t,
-) -> Success {
+unsafe fn yaml_parser_scan_impl(parser: *mut yaml_parser_t, token: *mut yaml_token_t) -> Success {
     memset(
         token as *mut libc::c_void,
         0,
@@ -255,7 +252,7 @@ unsafe fn yaml_parser_set_scanner_error(
     (*parser).problem_mark = (*parser).mark;
 }
 
-unsafe fn yaml_parser_fetch_more_tokens_impl(mut parser: *mut yaml_parser_t) -> Success {
+pub(crate) unsafe fn yaml_parser_fetch_more_tokens_impl(mut parser: *mut yaml_parser_t) -> Success {
     let mut need_more_tokens: libc::c_int;
     loop {
         need_more_tokens = 0;
@@ -268,7 +265,9 @@ unsafe fn yaml_parser_fetch_more_tokens_impl(mut parser: *mut yaml_parser_t) -> 
             }
             simple_key = (*parser).simple_keys.start;
             while simple_key != (*parser).simple_keys.top {
-                if (*simple_key).possible != 0 && (*simple_key).token_number == (*parser).tokens_parsed {
+                if (*simple_key).possible != 0
+                    && (*simple_key).token_number == (*parser).tokens_parsed
+                {
                     need_more_tokens = 1;
                     break;
                 } else {
@@ -1259,8 +1258,7 @@ unsafe fn yaml_parser_scan_directive_name(
             parser,
             b"while scanning a directive\0" as *const u8 as *const libc::c_char,
             start_mark,
-            b"found unexpected non-alphabetical character\0" as *const u8
-                as *const libc::c_char,
+            b"found unexpected non-alphabetical character\0" as *const u8 as *const libc::c_char,
         );
     } else {
         *name = string.start;
@@ -1611,13 +1609,14 @@ unsafe fn yaml_parser_scan_tag(
     if CACHE(parser, 1_usize).fail {
         return fail_tag_parts(handle, suffix);
     }
-    if !IS_BLANKZ!((*parser).buffer) && ((*parser).flow_level == 0 || !CHECK!((*parser).buffer, b',')) {
+    if !IS_BLANKZ!((*parser).buffer)
+        && ((*parser).flow_level == 0 || !CHECK!((*parser).buffer, b','))
+    {
         yaml_parser_set_scanner_error(
             parser,
             b"while scanning a tag\0" as *const u8 as *const libc::c_char,
             start_mark,
-            b"did not find expected whitespace or line break\0" as *const u8
-                as *const libc::c_char,
+            b"did not find expected whitespace or line break\0" as *const u8 as *const libc::c_char,
         );
         return fail_tag_parts(handle, suffix);
     }
@@ -1764,17 +1763,15 @@ unsafe fn yaml_parser_scan_tag_uri(
         || CHECK!((*parser).buffer, b'\'')
         || CHECK!((*parser).buffer, b'(')
         || CHECK!((*parser).buffer, b')')
-        || uri_char && (CHECK!((*parser).buffer, b',') || CHECK!((*parser).buffer, b'[') || CHECK!((*parser).buffer, b']'))
+        || uri_char
+            && (CHECK!((*parser).buffer, b',')
+                || CHECK!((*parser).buffer, b'[')
+                || CHECK!((*parser).buffer, b']'))
     {
         if CHECK!((*parser).buffer, b'%') {
             if extend_string(parser, addr_of_mut!(string)).fail
-                || yaml_parser_scan_uri_escapes(
-                    parser,
-                    directive,
-                    start_mark,
-                    addr_of_mut!(string),
-                )
-                .fail
+                || yaml_parser_scan_uri_escapes(parser, directive, start_mark, addr_of_mut!(string))
+                    .fail
             {
                 STRING_DEL!(string);
                 return FAIL;
@@ -2650,12 +2647,8 @@ unsafe fn yaml_parser_scan_flow_scalar(
                         string.pointer = string.pointer.wrapping_offset(1);
                         *fresh711 = b' ';
                     } else {
-                        if join_strings(
-                            parser,
-                            addr_of_mut!(string),
-                            addr_of_mut!(trailing_breaks),
-                        )
-                        .fail
+                        if join_strings(parser, addr_of_mut!(string), addr_of_mut!(trailing_breaks))
+                            .fail
                         {
                             current_block = 8114179180390253173;
                             break 's_58;
@@ -2664,22 +2657,13 @@ unsafe fn yaml_parser_scan_flow_scalar(
                     }
                     CLEAR!(leading_break);
                 } else {
-                    if join_strings(
-                        parser,
-                        addr_of_mut!(string),
-                        addr_of_mut!(leading_break),
-                    )
-                    .fail
+                    if join_strings(parser, addr_of_mut!(string), addr_of_mut!(leading_break)).fail
                     {
                         current_block = 8114179180390253173;
                         break 's_58;
                     }
-                    if join_strings(
-                        parser,
-                        addr_of_mut!(string),
-                        addr_of_mut!(trailing_breaks),
-                    )
-                    .fail
+                    if join_strings(parser, addr_of_mut!(string), addr_of_mut!(trailing_breaks))
+                        .fail
                     {
                         current_block = 8114179180390253173;
                         break 's_58;
@@ -2861,12 +2845,8 @@ unsafe fn yaml_parser_scan_plain_scalar(
                         }
                         leading_blanks = 0;
                     } else {
-                        if join_strings(
-                            parser,
-                            addr_of_mut!(string),
-                            addr_of_mut!(whitespaces),
-                        )
-                        .fail
+                        if join_strings(parser, addr_of_mut!(string), addr_of_mut!(whitespaces))
+                            .fail
                         {
                             current_block = 16642808987012640029;
                             break 's_57;

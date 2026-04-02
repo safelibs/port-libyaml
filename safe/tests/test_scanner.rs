@@ -119,7 +119,8 @@ fn staged_install_runs_phase2_c_probes_and_upstream_run_scanner() {
         "run parser_input_api staged-header mode",
     );
 
-    let parser_input_object = temp_dir("parser-input-api-link-safe").join("parser-input-api-safe.o");
+    let parser_input_object =
+        temp_dir("parser-input-api-link-safe").join("parser-input-api-safe.o");
     run_command(
         Command::new(&compiler)
             .arg("-c")
@@ -130,7 +131,8 @@ fn staged_install_runs_phase2_c_probes_and_upstream_run_scanner() {
             .arg(&parser_input_object),
         "compile parser_input_api.c against original header",
     );
-    let parser_input_link = temp_dir("parser-input-api-link-safe").join("parser-input-api-link-safe");
+    let parser_input_link =
+        temp_dir("parser-input-api-link-safe").join("parser-input-api-link-safe");
     run_command(
         Command::new(&compiler)
             .arg(&parser_input_object)
@@ -154,7 +156,8 @@ fn staged_install_runs_phase2_c_probes_and_upstream_run_scanner() {
         "run parser_input_api object-link mode",
     );
 
-    let private_exports_safe = temp_dir("private-parser-exports-safe").join("private-parser-exports-safe");
+    let private_exports_safe =
+        temp_dir("private-parser-exports-safe").join("private-parser-exports-safe");
     run_command(
         Command::new(&compiler)
             .arg("-I")
@@ -251,8 +254,8 @@ fn staged_install_runs_phase2_c_probes_and_upstream_run_scanner() {
         String::from_utf8_lossy(&run_scanner_output.stdout),
         String::from_utf8_lossy(&run_scanner_output.stderr)
     );
-    let stdout = String::from_utf8(run_scanner_output.stdout)
-        .expect("run-scanner emitted invalid UTF-8");
+    let stdout =
+        String::from_utf8(run_scanner_output.stdout).expect("run-scanner emitted invalid UTF-8");
     assert!(!stdout.contains("FAILURE"), "{stdout}");
     assert_eq!(stdout.matches("SUCCESS").count(), 4, "{stdout}");
 }
@@ -272,7 +275,9 @@ fn scan_types(input: &[u8]) -> Result<Vec<yaml_token_type_t>, String> {
                 let problem = if parser.problem.is_null() {
                     String::from("(no problem)")
                 } else {
-                    CStr::from_ptr(parser.problem).to_string_lossy().into_owned()
+                    CStr::from_ptr(parser.problem)
+                        .to_string_lossy()
+                        .into_owned()
                 };
                 let message = format!(
                     "error={:?} problem={problem} line={} column={}",

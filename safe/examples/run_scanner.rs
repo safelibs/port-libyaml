@@ -5,7 +5,7 @@ use std::process::ExitCode;
 
 use yaml::{
     yaml_parser_delete, yaml_parser_initialize, yaml_parser_scan, yaml_parser_set_input_string,
-    yaml_token_delete, yaml_parser_t, yaml_token_t, yaml_token_type_t,
+    yaml_parser_t, yaml_token_delete, yaml_token_t, yaml_token_type_t,
 };
 
 fn main() -> ExitCode {

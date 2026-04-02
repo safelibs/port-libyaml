@@ -13,7 +13,7 @@ pub(crate) use crate::{
     yaml_free, yaml_malloc, yaml_queue_extend, yaml_stack_extend, yaml_string_extend,
     yaml_string_join,
 };
-use crate::{FAIL, OK, PointerExt};
+use crate::{PointerExt, FAIL, OK};
 
 unsafe extern "C" {
     fn fread(ptr: *mut c_void, size: usize, nmemb: usize, stream: *mut c_void) -> usize;
@@ -60,11 +60,7 @@ unsafe extern "C" fn yaml_string_read_handler(
     }
 
     unsafe {
-        alloc::copy_bytes(
-            buffer.cast(),
-            (*parser).input.string.current.cast(),
-            size,
-        );
+        alloc::copy_bytes(buffer.cast(), (*parser).input.string.current.cast(), size);
         (*parser).input.string.current = (*parser).input.string.current.add(size);
         *size_read = size;
     }
@@ -101,7 +97,12 @@ pub unsafe extern "C" fn yaml_parser_initialize(parser: *mut yaml_parser_t) -> c
 
         zero_parser(parser);
 
-        if BUFFER_INIT!((*parser), (*parser).raw_buffer, crate::INPUT_RAW_BUFFER_SIZE) == FAIL {
+        if BUFFER_INIT!(
+            (*parser),
+            (*parser).raw_buffer,
+            crate::INPUT_RAW_BUFFER_SIZE
+        ) == FAIL
+        {
             return FAIL;
         }
         if BUFFER_INIT!((*parser), (*parser).buffer, crate::INPUT_BUFFER_SIZE) == FAIL {
@@ -185,7 +186,10 @@ pub unsafe extern "C" fn yaml_parser_set_input_string(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn yaml_parser_set_input_file(parser: *mut yaml_parser_t, file: *mut yaml_file_t) {
+pub unsafe extern "C" fn yaml_parser_set_input_file(
+    parser: *mut yaml_parser_t,
+    file: *mut yaml_file_t,
+) {
     ffi::void_boundary(|| unsafe {
         if parser.is_null() || file.is_null() || (*parser).read_handler.is_some() {
             return;

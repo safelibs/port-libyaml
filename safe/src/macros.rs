@@ -25,8 +25,8 @@ macro_rules! BUFFER_DEL {
 
 macro_rules! STRING_INIT {
     ($context:expr, $string:expr) => {{
-        $string.start = crate::yaml_malloc(crate::INITIAL_STRING_SIZE)
-            as *mut crate::types::yaml_char_t;
+        $string.start =
+            crate::yaml_malloc(crate::INITIAL_STRING_SIZE) as *mut crate::types::yaml_char_t;
         $string.pointer = $string.start;
         $string.end = if $string.start.is_null() {
             core::ptr::null_mut()
@@ -364,8 +364,8 @@ macro_rules! COPY {
 
 macro_rules! STACK_INIT {
     ($stack:expr, $type:ty) => {{
-        $stack.start =
-            crate::yaml_malloc(crate::INITIAL_STACK_SIZE * core::mem::size_of::<$type>()) as *mut $type;
+        $stack.start = crate::yaml_malloc(crate::INITIAL_STACK_SIZE * core::mem::size_of::<$type>())
+            as *mut $type;
         if $stack.start.is_null() {
             crate::FAIL
         } else {
@@ -432,8 +432,8 @@ macro_rules! POP {
 
 macro_rules! QUEUE_INIT {
     ($queue:expr, $type:ty) => {{
-        $queue.start =
-            crate::yaml_malloc(crate::INITIAL_QUEUE_SIZE * core::mem::size_of::<$type>()) as *mut $type;
+        $queue.start = crate::yaml_malloc(crate::INITIAL_QUEUE_SIZE * core::mem::size_of::<$type>())
+            as *mut $type;
         if $queue.start.is_null() {
             crate::FAIL
         } else {
@@ -516,7 +516,10 @@ macro_rules! QUEUE_INSERT {
                 crate::FAIL
             } else {
                 crate::alloc::move_bytes(
-                    ($queue.head).wrapping_add($index as usize).wrapping_add(1).cast(),
+                    ($queue.head)
+                        .wrapping_add($index as usize)
+                        .wrapping_add(1)
+                        .cast(),
                     ($queue.head).wrapping_add($index as usize).cast(),
                     (crate::PointerExt::c_offset_from($queue.tail, $queue.head) as usize)
                         .saturating_sub($index as usize)
@@ -528,7 +531,10 @@ macro_rules! QUEUE_INSERT {
             }
         } else {
             crate::alloc::move_bytes(
-                ($queue.head).wrapping_add($index as usize).wrapping_add(1).cast(),
+                ($queue.head)
+                    .wrapping_add($index as usize)
+                    .wrapping_add(1)
+                    .cast(),
                 ($queue.head).wrapping_add($index as usize).cast(),
                 (crate::PointerExt::c_offset_from($queue.tail, $queue.head) as usize)
                     .saturating_sub($index as usize)

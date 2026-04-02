@@ -3,7 +3,7 @@ use core::ffi::{c_char, c_int};
 use crate::alloc;
 use crate::ffi;
 use crate::types::{yaml_encoding_t, yaml_error_type_t, yaml_parser_t};
-use crate::{FAIL, OK, PointerExt};
+use crate::{PointerExt, FAIL, OK};
 
 const BOM_UTF8: &[u8] = b"\xEF\xBB\xBF";
 const BOM_UTF16LE: &[u8] = b"\xFF\xFE";
@@ -38,14 +38,21 @@ unsafe fn yaml_parser_set_reader_error(
 
 unsafe fn yaml_parser_determine_encoding(parser: *mut yaml_parser_t) -> c_int {
     while (*parser).eof == 0
-        && ((*parser).raw_buffer.last.c_offset_from((*parser).raw_buffer.pointer) as usize) < 3
+        && ((*parser)
+            .raw_buffer
+            .last
+            .c_offset_from((*parser).raw_buffer.pointer) as usize)
+            < 3
     {
         if yaml_parser_update_raw_buffer(parser) == FAIL {
             return FAIL;
         }
     }
 
-    let raw_unread = (*parser).raw_buffer.last.c_offset_from((*parser).raw_buffer.pointer) as usize;
+    let raw_unread = (*parser)
+        .raw_buffer
+        .last
+        .c_offset_from((*parser).raw_buffer.pointer) as usize;
     if raw_unread >= 2
         && alloc::compare_bytes(
             (*parser).raw_buffer.pointer.cast(),
@@ -101,13 +108,18 @@ unsafe fn yaml_parser_update_raw_buffer(parser: *mut yaml_parser_t) -> c_int {
         alloc::move_bytes(
             (*parser).raw_buffer.start.cast(),
             (*parser).raw_buffer.pointer.cast(),
-            (*parser).raw_buffer.last.c_offset_from((*parser).raw_buffer.pointer) as usize,
+            (*parser)
+                .raw_buffer
+                .last
+                .c_offset_from((*parser).raw_buffer.pointer) as usize,
         );
     }
-    (*parser).raw_buffer.last = (*parser)
-        .raw_buffer
-        .last
-        .wrapping_offset(-((*parser).raw_buffer.pointer.c_offset_from((*parser).raw_buffer.start)));
+    (*parser).raw_buffer.last = (*parser).raw_buffer.last.wrapping_offset(
+        -((*parser)
+            .raw_buffer
+            .pointer
+            .c_offset_from((*parser).raw_buffer.start)),
+    );
     (*parser).raw_buffer.pointer = (*parser).raw_buffer.start;
 
     let handler = match (*parser).read_handler {
@@ -117,7 +129,10 @@ unsafe fn yaml_parser_update_raw_buffer(parser: *mut yaml_parser_t) -> c_int {
     if handler(
         (*parser).read_handler_data,
         (*parser).raw_buffer.last,
-        (*parser).raw_buffer.end.c_offset_from((*parser).raw_buffer.last) as usize,
+        (*parser)
+            .raw_buffer
+            .end
+            .c_offset_from((*parser).raw_buffer.last) as usize,
         &mut size_read,
     ) == 0
     {
@@ -133,7 +148,10 @@ unsafe fn yaml_parser_update_raw_buffer(parser: *mut yaml_parser_t) -> c_int {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn yaml_parser_update_buffer(parser: *mut yaml_parser_t, length: usize) -> c_int {
+pub unsafe extern "C" fn yaml_parser_update_buffer(
+    parser: *mut yaml_parser_t,
+    length: usize,
+) -> c_int {
     ffi::int_boundary(|| unsafe {
         if parser.is_null() || (*parser).read_handler.is_none() {
             return FAIL;
@@ -156,7 +174,10 @@ pub unsafe extern "C" fn yaml_parser_update_buffer(parser: *mut yaml_parser_t, l
         if (*parser).buffer.start < (*parser).buffer.pointer
             && (*parser).buffer.pointer < (*parser).buffer.last
         {
-            let size = (*parser).buffer.last.c_offset_from((*parser).buffer.pointer) as usize;
+            let size = (*parser)
+                .buffer
+                .last
+                .c_offset_from((*parser).buffer.pointer) as usize;
             alloc::move_bytes(
                 (*parser).buffer.start.cast(),
                 (*parser).buffer.pointer.cast(),
@@ -183,8 +204,11 @@ pub unsafe extern "C" fn yaml_parser_update_buffer(parser: *mut yaml_parser_t, l
                 let value2: u32;
                 let mut incomplete = 0;
                 let mut width = 0usize;
-                let raw_unread =
-                    (*parser).raw_buffer.last.c_offset_from((*parser).raw_buffer.pointer) as usize;
+                let raw_unread = (*parser)
+                    .raw_buffer
+                    .last
+                    .c_offset_from((*parser).raw_buffer.pointer)
+                    as usize;
 
                 match (*parser).encoding {
                     yaml_encoding_t::YAML_UTF8_ENCODING => {
@@ -266,12 +290,14 @@ pub unsafe extern "C" fn yaml_parser_update_buffer(parser: *mut yaml_parser_t, l
                             }
                         }
                     }
-                    yaml_encoding_t::YAML_UTF16LE_ENCODING | yaml_encoding_t::YAML_UTF16BE_ENCODING => {
-                        let (low, high) = if (*parser).encoding == yaml_encoding_t::YAML_UTF16LE_ENCODING {
-                            (0usize, 1usize)
-                        } else {
-                            (1usize, 0usize)
-                        };
+                    yaml_encoding_t::YAML_UTF16LE_ENCODING
+                    | yaml_encoding_t::YAML_UTF16BE_ENCODING => {
+                        let (low, high) =
+                            if (*parser).encoding == yaml_encoding_t::YAML_UTF16LE_ENCODING {
+                                (0usize, 1usize)
+                            } else {
+                                (1usize, 0usize)
+                            };
 
                         if raw_unread < 2 {
                             if (*parser).eof != 0 {
@@ -309,7 +335,8 @@ pub unsafe extern "C" fn yaml_parser_update_buffer(parser: *mut yaml_parser_t, l
                                     incomplete = 1;
                                 } else {
                                     value2 = (*(*parser).raw_buffer.pointer.add(low + 2)) as u32
-                                        + (((*(*parser).raw_buffer.pointer.add(high + 2)) as u32) << 8);
+                                        + (((*(*parser).raw_buffer.pointer.add(high + 2)) as u32)
+                                            << 8);
                                     if value2 & 0xFC00 != 0xDC00 {
                                         return yaml_parser_set_reader_error(
                                             parser,
@@ -385,7 +412,12 @@ pub unsafe extern "C" fn yaml_parser_update_buffer(parser: *mut yaml_parser_t, l
                 (*parser).buffer.last = (*parser).buffer.last.add(1);
                 (*parser).unread = (*parser).unread.wrapping_add(1);
                 if (*parser).offset >= crate::MAX_FILE_SIZE {
-                    return yaml_parser_set_reader_error(parser, INPUT_TOO_LONG, (*parser).offset, -1);
+                    return yaml_parser_set_reader_error(
+                        parser,
+                        INPUT_TOO_LONG,
+                        (*parser).offset,
+                        -1,
+                    );
                 }
                 return OK;
             }

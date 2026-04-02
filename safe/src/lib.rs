@@ -4,7 +4,9 @@
 mod macros;
 pub mod alloc;
 mod api;
+mod event;
 pub mod ffi;
+mod parser;
 mod reader;
 mod scanner;
 pub mod types;
@@ -42,10 +44,18 @@ pub use api::{
     yaml_parser_delete, yaml_parser_initialize, yaml_parser_set_encoding, yaml_parser_set_input,
     yaml_parser_set_input_file, yaml_parser_set_input_string, yaml_token_delete,
 };
+pub use event::{
+    yaml_alias_event_initialize, yaml_document_end_event_initialize,
+    yaml_document_start_event_initialize, yaml_event_delete, yaml_mapping_end_event_initialize,
+    yaml_mapping_start_event_initialize, yaml_scalar_event_initialize,
+    yaml_sequence_end_event_initialize, yaml_sequence_start_event_initialize,
+    yaml_stream_end_event_initialize, yaml_stream_start_event_initialize,
+};
 pub use internal::utf::{
     INITIAL_QUEUE_SIZE, INITIAL_STACK_SIZE, INITIAL_STRING_SIZE, INPUT_BUFFER_SIZE,
     INPUT_RAW_BUFFER_SIZE, MAX_FILE_SIZE, OUTPUT_BUFFER_SIZE, OUTPUT_RAW_BUFFER_SIZE,
 };
+pub use parser::yaml_parser_parse;
 pub use reader::yaml_parser_update_buffer;
 pub use scanner::{yaml_parser_fetch_more_tokens, yaml_parser_scan};
 pub use types::*;

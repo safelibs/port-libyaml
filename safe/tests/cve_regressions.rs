@@ -41,7 +41,8 @@ fn clusterfuzz_fixture_returns_recoverable_scanner_error() {
         .parent()
         .expect("safe crate should have a repository root parent");
     let fixture = fs::read(
-        repo_root.join("original/regression-inputs/clusterfuzz-testcase-minimized-5607885063061504.yml"),
+        repo_root
+            .join("original/regression-inputs/clusterfuzz-testcase-minimized-5607885063061504.yml"),
     )
     .expect("failed to read clusterfuzz regression fixture");
 
@@ -82,7 +83,11 @@ fn scan_all(input: &[u8]) -> ScanOutcome {
         let problem = if parser.problem.is_null() {
             None
         } else {
-            Some(CStr::from_ptr(parser.problem).to_string_lossy().into_owned())
+            Some(
+                CStr::from_ptr(parser.problem)
+                    .to_string_lossy()
+                    .into_owned(),
+            )
         };
         let outcome = ScanOutcome {
             ok,
