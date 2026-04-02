@@ -1,0 +1,40 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export CARGO_HOME = $(CURDIR)/debian/.cargo-home
+export CARGO_NET_OFFLINE = true
+export CARGO_TARGET_DIR = $(CURDIR)/target/debian
+export CARGO_TERM_COLOR = never
+
+%:
+	dh $@ --buildsystem=none
+
+override_dh_auto_clean:
+	cargo clean --manifest-path $(CURDIR)/Cargo.toml --target-dir $(CARGO_TARGET_DIR)
+	rm -rf $(CURDIR)/debian/.cargo-home $(CURDIR)/debian/tmp $(CURDIR)/doc/html $(CURDIR)/out/debs
+
+override_dh_auto_build-arch:
+	cargo build --manifest-path $(CURDIR)/Cargo.toml --release --locked --offline
+
+override_dh_auto_build-indep:
+	rm -rf $(CURDIR)/doc/html
+	doxygen $(CURDIR)/doc/doxygen.cfg
+
+override_dh_auto_test-arch:
+	cargo test --manifest-path $(CURDIR)/Cargo.toml --locked --offline
+
+override_dh_auto_install-arch:
+	rm -rf $(CURDIR)/debian/tmp
+	mkdir -p $(CURDIR)/debian/tmp
+	bash $(CURDIR)/scripts/stage-install.sh $(CURDIR)/debian/tmp
+	bash $(CURDIR)/scripts/verify-exported-symbols.sh $(CURDIR)/debian/tmp $(CURDIR)/debian/libyaml-0-2.symbols
+
+override_dh_auto_install-indep:
+	:
+
+override_dh_installdocs:
+	dh_installdocs -a
+	dh_installdocs -i -plibyaml-doc --doc-main-package=libyaml-dev
+
+override_dh_compress:
+	dh_compress -Xrun-loader.c -Xrun-parser.c -Xrun-scanner.c

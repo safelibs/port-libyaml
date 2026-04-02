@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-IMAGE_TAG="libyaml-original-smoke:latest"
+IMAGE_TAG="libyaml-safe-smoke:latest"
 
 for tool in docker python3; do
   if ! command -v "$tool" >/dev/null 2>&1; then
@@ -13,8 +13,8 @@ for tool in docker python3; do
   fi
 done
 
-if [[ ! -d original ]]; then
-  printf 'missing original source tree\n' >&2
+if [[ ! -d safe ]]; then
+  printf 'missing safe source tree\n' >&2
   exit 1
 fi
 
@@ -58,22 +58,28 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
-      autoconf \
-      automake \
       appstream \
+      binutils \
       build-essential \
       ca-certificates \
+      cargo \
       crystal \
+      debhelper \
+      dh-buildinfo \
+      doxygen \
+      dpkg-dev \
+      fakeroot \
       h2o \
       libcamera-dev \
       libcamera-ipa \
-      libtool \
       netplan.io \
       php8.3-cli \
       php8.3-yaml \
       pkg-config \
       python3 \
       python3-yaml \
+      ripgrep \
+      rustc \
       ruby \
       ruby-psych \
       ser2net \
@@ -130,27 +136,25 @@ RUN LIBCAMERA_SRC_DIR="$(echo /tmp/libcamera-src/libcamera-*/)" \
       -o /usr/local/bin/libcamera-yaml-smoke \
       $(pkg-config --libs libcamera) \
  && /usr/local/bin/libcamera-yaml-smoke >/tmp/libcamera-yaml-build.log \
- && rm -rf /tmp/libcamera-src /tmp/libcamera-yaml-smoke.cpp /tmp/libcamera-yaml-build.log \
+ && rm -rf /tmp/libcamera-src /tmp/libcamera-yaml-smoke.cpp /tmp/libcamera-yaml-build.log
+
+COPY safe /src/libyaml-safe/safe
+
+RUN cd /src/libyaml-safe \
+ && rm -f /etc/dpkg/dpkg.cfg.d/excludes \
+ && bash safe/scripts/build-deb.sh \
+ && apt-get install -y --allow-downgrades --no-install-recommends \
+      /src/libyaml-safe/safe/out/debs/libyaml-0-2.deb \
+      /src/libyaml-safe/safe/out/debs/libyaml-dev.deb \
+      /src/libyaml-safe/safe/out/debs/libyaml-doc.deb \
+ && ldconfig \
  && rm -rf /var/lib/apt/lists/*
-
-COPY original /src/libyaml
-
-RUN cd /src/libyaml \
- && ./bootstrap \
- && ./configure --prefix=/usr/local \
- && make -j"$(nproc)" \
- && make check \
- && make install \
- && ldconfig
 
 WORKDIR /work
 DOCKERFILE
 
 docker run --rm -i "$IMAGE_TAG" bash <<'EOF'
 set -euo pipefail
-
-export LD_LIBRARY_PATH="/usr/local/lib:/usr/local/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-export PATH="/usr/local/bin:$PATH"
 
 log() {
   printf '==> %s\n' "$1"
@@ -160,9 +164,9 @@ require_contains() {
   local file="$1"
   local needle="$2"
 
-  if ! grep -F "$needle" "$file" >/dev/null 2>&1; then
+  if ! grep -F -- "$needle" "$file" >/dev/null 2>&1; then
     printf 'missing expected text in %s: %s\n' "$file" "$needle" >&2
-    printf '--- %s ---\n' "$file" >&2
+    printf -- '--- %s ---\n' "$file" >&2
     cat "$file" >&2
     exit 1
   fi
@@ -184,6 +188,10 @@ run_ser2net() {
 
 mkdir -p /tmp/libyaml-smoke
 cd /tmp/libyaml-smoke
+multiarch="$(gcc -print-multiarch)"
+
+test -e "/usr/lib/$multiarch/libyaml-0.so.2"
+pkg-config --exists yaml-0.1
 
 log "netplan.io"
 mkdir -p root/etc/netplan
@@ -274,7 +282,6 @@ log "libcamera0.2"
 strace -f -e trace=openat libcamera-yaml-smoke >/tmp/libcamera.log 2>/tmp/libcamera.strace
 require_contains /tmp/libcamera.log "algorithms="
 require_contains /tmp/libcamera.strace "/usr/share/libcamera/ipa/ipu3/uncalibrated.yaml"
-require_contains /tmp/libcamera.strace "/usr/local/lib/libyaml-0.so.2"
 
 log "libappstream5"
 cat > /tmp/appstream.metainfo.xml <<'XML'
@@ -318,11 +325,10 @@ raise "bad emit" unless emitted.includes?("count: 3")
 puts emitted
 CRYSTAL
 pkg-config --libs yaml-0.1 >/tmp/crystal-pkgconfig.log 2>&1
-require_contains /tmp/crystal-pkgconfig.log "/usr/local/lib"
+require_contains /tmp/crystal-pkgconfig.log "-lyaml"
 crystal build /tmp/crystal-smoke.cr -o /tmp/crystal-smoke >/tmp/crystal-build.log 2>&1
-ldd /tmp/crystal-smoke >/tmp/crystal-ldd.log
-require_contains /tmp/crystal-ldd.log "/usr/local/lib/libyaml-0.so.2"
+ldd /tmp/crystal-smoke >/tmp/crystal-ldd.log 2>&1
+require_contains /tmp/crystal-ldd.log "libyaml-0.so.2 =>"
 strace -f -e trace=openat /tmp/crystal-smoke >/tmp/crystal.log 2>/tmp/crystal.strace
-require_contains /tmp/crystal.strace "/usr/local/lib/libyaml-0.so.2"
 require_contains /tmp/crystal.log "count: 3"
 EOF

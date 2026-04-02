@@ -37,12 +37,10 @@ fn wrapped_scalar_trigger_returns_scanner_error_instead_of_aborting() {
 #[test]
 fn clusterfuzz_fixture_returns_recoverable_scanner_error() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let repo_root = manifest_dir
-        .parent()
-        .expect("safe crate should have a repository root parent");
     let fixture = fs::read(
-        repo_root
-            .join("original/regression-inputs/clusterfuzz-testcase-minimized-5607885063061504.yml"),
+        manifest_dir.join(
+            "compat/regression-inputs/clusterfuzz-testcase-minimized-5607885063061504.yml",
+        ),
     )
     .expect("failed to read clusterfuzz regression fixture");
 

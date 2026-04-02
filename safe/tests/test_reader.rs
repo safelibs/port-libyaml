@@ -10,6 +10,12 @@ use yaml::{
     yaml_parser_t, yaml_parser_update_buffer, MAX_FILE_SIZE,
 };
 
+macro_rules! cstr {
+    ($value:literal) => {
+        unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(concat!($value, "\0").as_bytes()) }
+    };
+}
+
 const BOM_ORIGINAL: &[u8] = b"Hi is \xD0\x9F\xD1\x80\xD0\xB8\xD0\xB2\xD0\xB5\xD1\x82";
 const UTF16LE_GREETING_NO_BOM: &[u8] = &[
     b'H', 0x00, b'i', 0x00, b' ', 0x00, b'i', 0x00, b's', 0x00, b' ', 0x00, 0x1f, 0x04, 0x40,
@@ -264,7 +270,7 @@ fn oversized_input_guard_reports_exact_reader_error_fields() {
         parser.offset = MAX_FILE_SIZE;
         assert_eq!(yaml_parser_update_buffer(&mut parser, 1), 0);
         assert_eq!(parser.error, yaml_error_type_t::YAML_READER_ERROR);
-        assert_eq!(CStr::from_ptr(parser.problem), c"input is too long");
+        assert_eq!(CStr::from_ptr(parser.problem), cstr!("input is too long"));
         assert_eq!(parser.problem_offset, MAX_FILE_SIZE);
         assert_eq!(parser.problem_value, -1);
         yaml_parser_delete(&mut parser);

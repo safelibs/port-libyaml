@@ -21,6 +21,12 @@ use yaml::{
     yaml_stream_start_event_initialize,
 };
 
+macro_rules! cstr {
+    ($value:literal) => {
+        unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(concat!($value, "\0").as_bytes()) }
+    };
+}
+
 const UTF8_GREETING: &[u8] = "Hi is Привет".as_bytes();
 
 #[repr(C)]
@@ -226,7 +232,7 @@ fn emitter_callback_failures_report_writer_errors() {
         );
         assert_eq!(emit_scalar_mapping_document(&mut emitter, b"hello"), 0);
         assert_eq!(emitter.error, yaml_error_type_t::YAML_WRITER_ERROR);
-        assert_eq!(CStr::from_ptr(emitter.problem), c"write error");
+        assert_eq!(CStr::from_ptr(emitter.problem), cstr!("write error"));
         yaml_emitter_delete(&mut emitter);
     }
 }

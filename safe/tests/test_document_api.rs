@@ -18,6 +18,12 @@ use yaml::{
     yaml_version_directive_t,
 };
 
+macro_rules! cstr {
+    ($value:literal) => {
+        unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(concat!($value, "\0").as_bytes()) }
+    };
+}
+
 const EXAMPLE_TAG_PREFIX: &[u8] = b"tag:example.com,2026:\0";
 const EXAMPLE_TEXT_TAG: &[u8] = b"tag:example.com,2026:text\0";
 
@@ -97,11 +103,11 @@ fn document_initialize_deep_copies_metadata_and_delete_zeroes_memory() {
         assert_eq!(document.version_directive.as_ref().unwrap().major, 1);
         assert_eq!(
             CStr::from_ptr(document.tag_directives.start.read().handle.cast()),
-            c"!e!"
+            cstr!("!e!")
         );
         assert_eq!(
             CStr::from_ptr(document.tag_directives.start.read().prefix.cast()),
-            c"tag:example.com,2026:"
+            cstr!("tag:example.com,2026:")
         );
 
         yaml_document_delete(&mut document);
@@ -183,7 +189,7 @@ fn parser_load_builds_documents_and_returns_empty_document_on_stream_end() {
         let message = lookup_mapping_value(&mut document, root, b"message").expect("message");
         assert_eq!(
             CStr::from_ptr((*message).tag.cast()),
-            c"tag:example.com,2026:text"
+            cstr!("tag:example.com,2026:text")
         );
         assert_eq!(scalar_value(message), b"value");
 
@@ -231,9 +237,9 @@ fn parser_load_reports_composer_errors_for_alias_misuse() {
         assert_eq!(parser.error, yaml_error_type_t::YAML_COMPOSER_ERROR);
         assert_eq!(
             CStr::from_ptr(parser.context),
-            c"found duplicate anchor; first occurrence"
+            cstr!("found duplicate anchor; first occurrence")
         );
-        assert_eq!(CStr::from_ptr(parser.problem), c"second occurrence");
+        assert_eq!(CStr::from_ptr(parser.problem), cstr!("second occurrence"));
         yaml_parser_delete(&mut parser);
 
         let undefined_alias = b"value: *missing\n";
@@ -243,7 +249,7 @@ fn parser_load_reports_composer_errors_for_alias_misuse() {
         yaml_parser_set_input_string(&mut parser, undefined_alias.as_ptr(), undefined_alias.len());
         assert_eq!(yaml_parser_load(&mut parser, &mut document), 0);
         assert_eq!(parser.error, yaml_error_type_t::YAML_COMPOSER_ERROR);
-        assert_eq!(CStr::from_ptr(parser.problem), c"found undefined alias");
+        assert_eq!(CStr::from_ptr(parser.problem), cstr!("found undefined alias"));
         yaml_parser_delete(&mut parser);
     }
 }

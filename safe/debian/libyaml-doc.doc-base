@@ -1,0 +1,9 @@
+Document: libyaml
+Title: LibYAML API documentation
+Author: Kirill Simonov <xi@resolvent.net>
+Abstract: Doxygen-generated API documentation for LibYAML.
+Section: Programming/C
+
+Format: HTML
+Index: /usr/share/doc/libyaml-dev/html/index.html
+Files: /usr/share/doc/libyaml-dev/html/*.html

@@ -15,6 +15,12 @@ use yaml::{
     yaml_realloc, yaml_stack_extend, yaml_strdup, yaml_string_extend, yaml_string_join,
 };
 
+macro_rules! cstr {
+    ($value:literal) => {
+        unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(concat!($value, "\0").as_bytes()) }
+    };
+}
+
 #[test]
 fn allocator_exports_match_c_compat_rules() {
     unsafe {
@@ -31,13 +37,13 @@ fn allocator_exports_match_c_compat_rules() {
 
         assert!(yaml_strdup(ptr::null()).is_null());
 
-        let duplicated = yaml_strdup(c"helper-symbols".as_ptr().cast());
+        let duplicated = yaml_strdup(cstr!("helper-symbols").as_ptr().cast());
         assert!(!duplicated.is_null());
-        assert_eq!(CStr::from_ptr(duplicated.cast()), c"helper-symbols");
+        assert_eq!(CStr::from_ptr(duplicated.cast()), cstr!("helper-symbols"));
         yaml_free(duplicated.cast());
 
         let version = CStr::from_ptr(yaml_get_version_string());
-        assert_eq!(version, c"0.2.5");
+        assert_eq!(version, cstr!("0.2.5"));
 
         let mut major = -1;
         let mut minor = -1;

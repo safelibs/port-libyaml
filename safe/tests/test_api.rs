@@ -28,6 +28,12 @@ use yaml::{
     yaml_tag_directive_t, yaml_version_directive_t,
 };
 
+macro_rules! cstr {
+    ($value:literal) => {
+        unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(concat!($value, "\0").as_bytes()) }
+    };
+}
+
 const BUFFER_SIZE: usize = 8192;
 const EXAMPLE_TAG_PREFIX: &[u8] = b"tag:example.com,2026:\0";
 const EXAMPLE_TEXT_TAG: &[u8] = b"tag:example.com,2026:text\0";
@@ -113,7 +119,11 @@ fn encoding_controls_match_upstream_test_api() {
         yaml_parser_set_encoding(&mut parser, yaml::yaml_encoding_t::YAML_UTF16LE_ENCODING);
         assert_eq!(parser.encoding, yaml::yaml_encoding_t::YAML_UTF16LE_ENCODING);
         assert_eq!(yaml_parser_load(&mut parser, &mut parsed), 1);
-        assert_scalar_node(yaml_document_get_root_node(&mut parsed), c"tag:yaml.org,2002:str", UTF8_GREETING);
+        assert_scalar_node(
+            yaml_document_get_root_node(&mut parsed),
+            cstr!("tag:yaml.org,2002:str"),
+            UTF8_GREETING,
+        );
         yaml_document_delete(&mut parsed);
         yaml_parser_delete(&mut parser);
 
@@ -135,7 +145,7 @@ fn encoding_controls_match_upstream_test_api() {
         assert_eq!(yaml_parser_load(&mut parser, &mut reparsed), 1);
         assert_scalar_node(
             yaml_document_get_root_node(&mut reparsed),
-            c"tag:yaml.org,2002:str",
+            cstr!("tag:yaml.org,2002:str"),
             UTF8_GREETING,
         );
         yaml_document_delete(&mut reparsed);
@@ -249,7 +259,7 @@ fn event_api_roundtrip_matches_upstream_test_api() {
         };
         let mut version = yaml_version_directive_t { major: 1, minor: 2 };
         let mut tags = [yaml_tag_directive_t {
-            handle: c"!e!".as_ptr().cast::<u8>().cast_mut(),
+            handle: cstr!("!e!").as_ptr().cast::<u8>().cast_mut(),
             prefix: EXAMPLE_TAG_PREFIX.as_ptr().cast_mut(),
         }];
 
@@ -286,8 +296,8 @@ fn event_api_roundtrip_matches_upstream_test_api() {
             &mut emitter,
             yaml_mapping_start_event_initialize(
                 &mut event,
-                c"root".as_ptr().cast(),
-                c"tag:yaml.org,2002:map".as_ptr().cast(),
+                cstr!("root").as_ptr().cast(),
+                cstr!("tag:yaml.org,2002:map").as_ptr().cast(),
                 1,
                 yaml_mapping_style_t::YAML_BLOCK_MAPPING_STYLE,
             ),
@@ -299,7 +309,7 @@ fn event_api_roundtrip_matches_upstream_test_api() {
                 &mut event,
                 ptr::null(),
                 ptr::null(),
-                c"shared".as_ptr().cast(),
+                cstr!("shared").as_ptr().cast(),
                 -1,
                 1,
                 1,
@@ -311,9 +321,9 @@ fn event_api_roundtrip_matches_upstream_test_api() {
             &mut emitter,
             yaml_scalar_event_initialize(
                 &mut event,
-                c"item".as_ptr().cast(),
+                cstr!("item").as_ptr().cast(),
                 EXAMPLE_TEXT_TAG.as_ptr(),
-                c"value".as_ptr().cast(),
+                cstr!("value").as_ptr().cast(),
                 -1,
                 0,
                 0,
@@ -327,7 +337,7 @@ fn event_api_roundtrip_matches_upstream_test_api() {
                 &mut event,
                 ptr::null(),
                 ptr::null(),
-                c"alias".as_ptr().cast(),
+                cstr!("alias").as_ptr().cast(),
                 -1,
                 1,
                 1,
@@ -335,14 +345,18 @@ fn event_api_roundtrip_matches_upstream_test_api() {
             ),
             &mut event,
         );
-        emit_ok(&mut emitter, yaml_alias_event_initialize(&mut event, c"item".as_ptr().cast()), &mut event);
+        emit_ok(
+            &mut emitter,
+            yaml_alias_event_initialize(&mut event, cstr!("item").as_ptr().cast()),
+            &mut event,
+        );
         emit_ok(
             &mut emitter,
             yaml_scalar_event_initialize(
                 &mut event,
                 ptr::null(),
                 ptr::null(),
-                c"seq".as_ptr().cast(),
+                cstr!("seq").as_ptr().cast(),
                 -1,
                 1,
                 1,
@@ -355,7 +369,7 @@ fn event_api_roundtrip_matches_upstream_test_api() {
             yaml_sequence_start_event_initialize(
                 &mut event,
                 ptr::null(),
-                c"tag:yaml.org,2002:seq".as_ptr().cast(),
+                cstr!("tag:yaml.org,2002:seq").as_ptr().cast(),
                 1,
                 yaml_sequence_style_t::YAML_FLOW_SEQUENCE_STYLE,
             ),
@@ -367,7 +381,7 @@ fn event_api_roundtrip_matches_upstream_test_api() {
                 &mut event,
                 ptr::null(),
                 ptr::null(),
-                c"a".as_ptr().cast(),
+                cstr!("a").as_ptr().cast(),
                 -1,
                 1,
                 1,
@@ -381,7 +395,7 @@ fn event_api_roundtrip_matches_upstream_test_api() {
                 &mut event,
                 ptr::null(),
                 ptr::null(),
-                c"b".as_ptr().cast(),
+                cstr!("b").as_ptr().cast(),
                 -1,
                 1,
                 1,
@@ -426,13 +440,13 @@ fn event_api_roundtrip_matches_upstream_test_api() {
         );
         assert_eq!(
             CStr::from_ptr(event.data.document_start.tag_directives.start.read().handle.cast()),
-            c"!e!"
+            cstr!("!e!")
         );
         yaml_event_delete(&mut event);
 
         parse_ok(&mut parser, &mut event);
         assert_eq!(event.r#type, yaml::yaml_event_type_t::YAML_MAPPING_START_EVENT);
-        assert_eq!(CStr::from_ptr(event.data.mapping_start.anchor.cast()), c"root");
+        assert_eq!(CStr::from_ptr(event.data.mapping_start.anchor.cast()), cstr!("root"));
         yaml_event_delete(&mut event);
 
         parse_ok(&mut parser, &mut event);
@@ -442,10 +456,10 @@ fn event_api_roundtrip_matches_upstream_test_api() {
 
         parse_ok(&mut parser, &mut event);
         assert_eq!(event.r#type, yaml::yaml_event_type_t::YAML_SCALAR_EVENT);
-        assert_eq!(CStr::from_ptr(event.data.scalar.anchor.cast()), c"item");
+        assert_eq!(CStr::from_ptr(event.data.scalar.anchor.cast()), cstr!("item"));
         assert_eq!(
             CStr::from_ptr(event.data.scalar.tag.cast()),
-            c"tag:example.com,2026:text"
+            cstr!("tag:example.com,2026:text")
         );
         assert_eq!(scalar_bytes(&event), b"value");
         yaml_event_delete(&mut event);
@@ -457,7 +471,7 @@ fn event_api_roundtrip_matches_upstream_test_api() {
 
         parse_ok(&mut parser, &mut event);
         assert_eq!(event.r#type, yaml::yaml_event_type_t::YAML_ALIAS_EVENT);
-        assert_eq!(CStr::from_ptr(event.data.alias.anchor.cast()), c"item");
+        assert_eq!(CStr::from_ptr(event.data.alias.anchor.cast()), cstr!("item"));
         yaml_event_delete(&mut event);
 
         parse_ok(&mut parser, &mut event);
@@ -688,7 +702,7 @@ unsafe fn build_scalar_document(document: *mut yaml_document_t, value: &[u8]) {
     assert_eq!(
         yaml_document_add_scalar(
             document,
-            c"tag:yaml.org,2002:str".as_ptr().cast(),
+            cstr!("tag:yaml.org,2002:str").as_ptr().cast(),
             value.as_ptr(),
             value.len() as i32,
             yaml_scalar_style_t::YAML_PLAIN_SCALAR_STYLE,
@@ -720,13 +734,13 @@ unsafe fn build_roundtrip_document(document: *mut yaml_document_t) {
 
     let root = yaml_document_add_mapping(
         document,
-        c"tag:yaml.org,2002:map".as_ptr().cast(),
+        cstr!("tag:yaml.org,2002:map").as_ptr().cast(),
         yaml_mapping_style_t::YAML_BLOCK_MAPPING_STYLE,
     );
     let message_key = yaml_document_add_scalar(
         document,
-        c"tag:yaml.org,2002:str".as_ptr().cast(),
-        c"message".as_ptr().cast(),
+        cstr!("tag:yaml.org,2002:str").as_ptr().cast(),
+        cstr!("message").as_ptr().cast(),
         -1,
         yaml_scalar_style_t::YAML_PLAIN_SCALAR_STYLE,
     );
@@ -741,27 +755,27 @@ unsafe fn build_roundtrip_document(document: *mut yaml_document_t) {
 
     let items_key = yaml_document_add_scalar(
         document,
-        c"tag:yaml.org,2002:str".as_ptr().cast(),
-        c"items".as_ptr().cast(),
+        cstr!("tag:yaml.org,2002:str").as_ptr().cast(),
+        cstr!("items").as_ptr().cast(),
         -1,
         yaml_scalar_style_t::YAML_PLAIN_SCALAR_STYLE,
     );
     let items_value = yaml_document_add_sequence(
         document,
-        c"tag:yaml.org,2002:seq".as_ptr().cast(),
+        cstr!("tag:yaml.org,2002:seq").as_ptr().cast(),
         yaml_sequence_style_t::YAML_BLOCK_SEQUENCE_STYLE,
     );
     let first_item = yaml_document_add_scalar(
         document,
-        c"tag:yaml.org,2002:str".as_ptr().cast(),
-        c"one".as_ptr().cast(),
+        cstr!("tag:yaml.org,2002:str").as_ptr().cast(),
+        cstr!("one").as_ptr().cast(),
         -1,
         yaml_scalar_style_t::YAML_PLAIN_SCALAR_STYLE,
     );
     let second_item = yaml_document_add_scalar(
         document,
-        c"tag:yaml.org,2002:str".as_ptr().cast(),
-        c"two".as_ptr().cast(),
+        cstr!("tag:yaml.org,2002:str").as_ptr().cast(),
+        cstr!("two").as_ptr().cast(),
         -1,
         yaml_scalar_style_t::YAML_PLAIN_SCALAR_STYLE,
     );
@@ -771,27 +785,27 @@ unsafe fn build_roundtrip_document(document: *mut yaml_document_t) {
 
     let meta_key = yaml_document_add_scalar(
         document,
-        c"tag:yaml.org,2002:str".as_ptr().cast(),
-        c"meta".as_ptr().cast(),
+        cstr!("tag:yaml.org,2002:str").as_ptr().cast(),
+        cstr!("meta").as_ptr().cast(),
         -1,
         yaml_scalar_style_t::YAML_PLAIN_SCALAR_STYLE,
     );
     let meta_value = yaml_document_add_mapping(
         document,
-        c"tag:yaml.org,2002:map".as_ptr().cast(),
+        cstr!("tag:yaml.org,2002:map").as_ptr().cast(),
         yaml_mapping_style_t::YAML_FLOW_MAPPING_STYLE,
     );
     let count_key = yaml_document_add_scalar(
         document,
-        c"tag:yaml.org,2002:str".as_ptr().cast(),
-        c"count".as_ptr().cast(),
+        cstr!("tag:yaml.org,2002:str").as_ptr().cast(),
+        cstr!("count").as_ptr().cast(),
         -1,
         yaml_scalar_style_t::YAML_PLAIN_SCALAR_STYLE,
     );
     let count_value = yaml_document_add_scalar(
         document,
-        c"tag:yaml.org,2002:int".as_ptr().cast(),
-        c"2".as_ptr().cast(),
+        cstr!("tag:yaml.org,2002:int").as_ptr().cast(),
+        cstr!("2").as_ptr().cast(),
         -1,
         yaml_scalar_style_t::YAML_PLAIN_SCALAR_STYLE,
     );

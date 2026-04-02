@@ -1,0 +1,12 @@
+doc/html/
+compat/original-tests/example-deconstructor-alt.c
+compat/original-tests/example-deconstructor.c
+compat/original-tests/example-reformatter-alt.c
+compat/original-tests/example-reformatter.c
+compat/original-tests/run-dumper.c
+compat/original-tests/run-emitter-test-suite.c
+compat/original-tests/run-emitter.c
+compat/original-tests/run-loader.c
+compat/original-tests/run-parser-test-suite.c
+compat/original-tests/run-parser.c
+compat/original-tests/run-scanner.c

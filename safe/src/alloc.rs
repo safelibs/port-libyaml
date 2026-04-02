@@ -1,7 +1,7 @@
 use core::ffi::{c_char, c_int, c_void};
 use std::ptr;
 
-unsafe extern "C" {
+extern "C" {
     fn malloc(size: usize) -> *mut c_void;
     fn realloc(ptr: *mut c_void, size: usize) -> *mut c_void;
     fn free(ptr: *mut c_void);

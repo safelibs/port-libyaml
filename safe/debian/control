@@ -1,0 +1,52 @@
+Source: libyaml
+Section: libs
+Priority: optional
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+XSBC-Original-Maintainer: Florian Ernst <florian@debian.org>
+Build-Depends:
+ binutils,
+ cargo,
+ debhelper-compat (= 13),
+ dh-buildinfo (>= 0.9+nmu1~),
+ gcc,
+ pkg-config,
+ rustc
+Build-Depends-Indep: doxygen (>= 1.8.4-1~)
+Standards-Version: 4.6.1.0
+Rules-Requires-Root: no
+Homepage: https://github.com/yaml/libyaml
+Vcs-Git: https://salsa.debian.org/debian/libyaml.git
+Vcs-Browser: https://salsa.debian.org/debian/libyaml
+
+Package: libyaml-0-2
+Architecture: any
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Pre-Depends: ${misc:Pre-Depends}
+Description: Fast YAML 1.1 parser and emitter library
+ LibYAML is a C library for parsing and emitting data in YAML 1.1, a
+ human-readable data serialization format.
+
+Package: libyaml-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends: ${misc:Depends}, libyaml-0-2 (= ${binary:Version})
+Suggests: libyaml-doc
+Description: Fast YAML 1.1 parser and emitter library (development)
+ LibYAML is a C library for parsing and emitting data in YAML 1.1, a
+ human-readable data serialization format.
+ .
+ This package contains development headers and static libraries.
+
+Package: libyaml-doc
+Section: doc
+Architecture: all
+Multi-Arch: foreign
+Depends: ${misc:Depends}
+Description: Fast YAML 1.1 parser and emitter library (documentation)
+ LibYAML is a C library for parsing and emitting data in YAML 1.1, a
+ human-readable data serialization format.
+ .
+ This package contains API documentation for developers in HTML
+ format, and some example programs from the LibYAML distribution.

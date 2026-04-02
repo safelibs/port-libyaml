@@ -14,7 +14,7 @@ pub(crate) use crate::{
 };
 use crate::{PointerExt, FAIL, OK};
 
-unsafe extern "C" {
+extern "C" {
     fn fread(ptr: *mut c_void, size: usize, nmemb: usize, stream: *mut c_void) -> usize;
     fn ferror(stream: *mut c_void) -> c_int;
     fn fwrite(ptr: *const c_void, size: usize, nmemb: usize, stream: *mut c_void) -> usize;

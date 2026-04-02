@@ -1,11 +1,9 @@
 use std::collections::BTreeSet;
-use std::env;
 use std::fs;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 const SONAME: &str = "libyaml-0.so.2";
-const VERSION_NODE: &str = "LIBYAML_0_2";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rerun-if-changed=compat/upstream/libyaml-0-2.symbols");
@@ -18,7 +16,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let phase_symbols = parse_symbol_list(&fs::read_to_string(phase_symbols_path)?);
 
     validate_phase_subset(&upstream_symbols, &phase_symbols)?;
-    emit_version_script(&phase_symbols)?;
     emit_linker_args();
 
     Ok(())
@@ -81,32 +78,6 @@ fn validate_phase_subset(
             ));
         }
     }
-    Ok(())
-}
-
-fn emit_version_script(phase_symbols: &[String]) -> Result<(), io::Error> {
-    let out_dir = PathBuf::from(
-        env::var_os("OUT_DIR")
-            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "OUT_DIR is not set"))?,
-    );
-    let script_path = out_dir.join("libyaml-phase-01.map");
-
-    let mut version_script = String::new();
-    version_script.push_str(VERSION_NODE);
-    version_script.push_str(" {\n    global:\n");
-    for symbol in phase_symbols {
-        version_script.push_str("        ");
-        version_script.push_str(symbol);
-        version_script.push_str(";\n");
-    }
-    version_script.push_str("    local:\n        *;\n};\n");
-
-    fs::write(&script_path, version_script)?;
-    println!(
-        "cargo:rustc-cdylib-link-arg=-Wl,--version-script={}",
-        script_path.display()
-    );
-
     Ok(())
 }
 

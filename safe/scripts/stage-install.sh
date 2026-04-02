@@ -37,7 +37,7 @@ mkdir -p \
     "${pkgconfig_dir}"
 
 export CARGO_TARGET_DIR="${target_dir}"
-cargo build --manifest-path "${safe_dir}/Cargo.toml" --release
+cargo build --manifest-path "${safe_dir}/Cargo.toml" --release --locked --offline
 
 install -m 0644 "${safe_dir}/include/yaml.h" "${stage_root}/usr/include/yaml.h"
 install -m 0755 "${build_dir}/libyaml.so" "${stage_lib_dir}/libyaml-0.so.2"

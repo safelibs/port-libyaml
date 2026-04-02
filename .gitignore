@@ -1,1 +1,4 @@
 /safe/target/
+/safe/out/
+/safe/.cargo-home/
+/safe/doc/html/

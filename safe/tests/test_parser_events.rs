@@ -19,6 +19,12 @@ use yaml::{
     yaml_tag_directive_t, yaml_version_directive_t,
 };
 
+macro_rules! cstr {
+    ($value:literal) => {
+        unsafe { ::std::ffi::CStr::from_bytes_with_nul_unchecked(concat!($value, "\0").as_bytes()) }
+    };
+}
+
 #[test]
 fn event_initializers_deep_copy_and_delete_zeroes_memory() {
     unsafe {
@@ -108,7 +114,7 @@ fn event_initializers_deep_copy_and_delete_zeroes_memory() {
                     .handle
                     .cast()
             ),
-            c"!e!"
+            cstr!("!e!")
         );
         assert_eq!(
             CStr::from_ptr(
@@ -121,7 +127,7 @@ fn event_initializers_deep_copy_and_delete_zeroes_memory() {
                     .prefix
                     .cast()
             ),
-            c"tag:example.com,2026:"
+            cstr!("tag:example.com,2026:")
         );
         yaml_event_delete(&mut event);
         assert_zeroed_event(&event);
@@ -140,7 +146,7 @@ fn event_initializers_deep_copy_and_delete_zeroes_memory() {
         assert_eq!(event.r#type, yaml_event_type_t::YAML_ALIAS_EVENT);
         assert_ne!(event.data.alias.anchor, alias_anchor.as_mut_ptr());
         alias_anchor[0] = b'X';
-        assert_eq!(CStr::from_ptr(event.data.alias.anchor.cast()), c"item");
+        assert_eq!(CStr::from_ptr(event.data.alias.anchor.cast()), cstr!("item"));
         yaml_event_delete(&mut event);
         assert_zeroed_event(&event);
 
@@ -167,10 +173,10 @@ fn event_initializers_deep_copy_and_delete_zeroes_memory() {
         scalar_anchor[0] = b'X';
         scalar_tag[0] = b'X';
         scalar_value[0] = b'X';
-        assert_eq!(CStr::from_ptr(event.data.scalar.anchor.cast()), c"item");
+        assert_eq!(CStr::from_ptr(event.data.scalar.anchor.cast()), cstr!("item"));
         assert_eq!(
             CStr::from_ptr(event.data.scalar.tag.cast()),
-            c"tag:example.com,2026:text"
+            cstr!("tag:example.com,2026:text")
         );
         assert_eq!(
             slice::from_raw_parts(event.data.scalar.value, event.data.scalar.length),
@@ -289,7 +295,7 @@ fn parser_parse_matches_expected_event_semantics() {
                     .handle
                     .cast()
             ),
-            c"!e!"
+            cstr!("!e!")
         );
         assert_eq!(
             CStr::from_ptr(
@@ -302,7 +308,7 @@ fn parser_parse_matches_expected_event_semantics() {
                     .prefix
                     .cast()
             ),
-            c"tag:example.com,2026:"
+            cstr!("tag:example.com,2026:")
         );
         yaml_event_delete(&mut event);
 
@@ -324,10 +330,10 @@ fn parser_parse_matches_expected_event_semantics() {
 
         parse_ok(&mut parser, &mut event);
         assert_eq!(event.r#type, yaml_event_type_t::YAML_SCALAR_EVENT);
-        assert_eq!(CStr::from_ptr(event.data.scalar.anchor.cast()), c"item");
+        assert_eq!(CStr::from_ptr(event.data.scalar.anchor.cast()), cstr!("item"));
         assert_eq!(
             CStr::from_ptr(event.data.scalar.tag.cast()),
-            c"tag:example.com,2026:text"
+            cstr!("tag:example.com,2026:text")
         );
         assert_eq!(
             slice::from_raw_parts(event.data.scalar.value, event.data.scalar.length),
@@ -351,7 +357,7 @@ fn parser_parse_matches_expected_event_semantics() {
 
         parse_ok(&mut parser, &mut event);
         assert_eq!(event.r#type, yaml_event_type_t::YAML_ALIAS_EVENT);
-        assert_eq!(CStr::from_ptr(event.data.alias.anchor.cast()), c"item");
+        assert_eq!(CStr::from_ptr(event.data.alias.anchor.cast()), cstr!("item"));
         yaml_event_delete(&mut event);
 
         parse_ok(&mut parser, &mut event);
@@ -424,10 +430,10 @@ fn parser_reports_undefined_tag_handle_with_context() {
 
         assert_eq!(yaml_parser_parse(&mut parser, &mut event), 0);
         assert_eq!(parser.error, yaml::yaml_error_type_t::YAML_PARSER_ERROR);
-        assert_eq!(CStr::from_ptr(parser.context), c"while parsing a node");
+        assert_eq!(CStr::from_ptr(parser.context), cstr!("while parsing a node"));
         assert_eq!(
             CStr::from_ptr(parser.problem),
-            c"found undefined tag handle"
+            cstr!("found undefined tag handle")
         );
         assert_eq!(parser.problem_mark.line, 0);
         assert_eq!(parser.context_mark.line, 0);
