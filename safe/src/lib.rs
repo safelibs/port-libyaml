@@ -1,5 +1,7 @@
 #![allow(non_camel_case_types, non_snake_case)]
 
+#[macro_use]
+mod macros;
 pub mod alloc;
 mod api;
 pub mod ffi;
@@ -15,10 +17,26 @@ mod internal {
 }
 
 use core::ffi::{c_char, c_int, c_void};
+use core::mem::size_of;
 
 use crate::internal::buffer::{used_bytes_from_pair, RawBufferTriplet};
 use crate::internal::queue::RawQueueQuad;
 use crate::internal::stack::RawStackTriplet;
+pub(crate) use crate::types::yaml_error_type_t::{
+    YAML_MEMORY_ERROR, YAML_NO_ERROR, YAML_SCANNER_ERROR,
+};
+pub(crate) use crate::types::yaml_scalar_style_t::{
+    YAML_DOUBLE_QUOTED_SCALAR_STYLE, YAML_FOLDED_SCALAR_STYLE, YAML_LITERAL_SCALAR_STYLE,
+    YAML_PLAIN_SCALAR_STYLE, YAML_SINGLE_QUOTED_SCALAR_STYLE,
+};
+pub(crate) use crate::types::yaml_token_type_t::{
+    YAML_ALIAS_TOKEN, YAML_ANCHOR_TOKEN, YAML_BLOCK_END_TOKEN, YAML_BLOCK_ENTRY_TOKEN,
+    YAML_BLOCK_MAPPING_START_TOKEN, YAML_BLOCK_SEQUENCE_START_TOKEN, YAML_DOCUMENT_END_TOKEN,
+    YAML_DOCUMENT_START_TOKEN, YAML_FLOW_ENTRY_TOKEN, YAML_FLOW_MAPPING_END_TOKEN,
+    YAML_FLOW_MAPPING_START_TOKEN, YAML_FLOW_SEQUENCE_END_TOKEN, YAML_FLOW_SEQUENCE_START_TOKEN,
+    YAML_KEY_TOKEN, YAML_SCALAR_TOKEN, YAML_STREAM_END_TOKEN, YAML_STREAM_START_TOKEN,
+    YAML_TAG_DIRECTIVE_TOKEN, YAML_TAG_TOKEN, YAML_VALUE_TOKEN, YAML_VERSION_DIRECTIVE_TOKEN,
+};
 
 pub use api::{
     yaml_parser_delete, yaml_parser_initialize, yaml_parser_set_encoding, yaml_parser_set_input,
@@ -31,6 +49,104 @@ pub use internal::utf::{
 pub use reader::yaml_parser_update_buffer;
 pub use scanner::{yaml_parser_fetch_more_tokens, yaml_parser_scan};
 pub use types::*;
+
+pub(crate) const OK: c_int = 1;
+pub(crate) const FAIL: c_int = 0;
+
+pub(crate) mod libc {
+    pub type c_char = core::ffi::c_char;
+    pub type c_int = core::ffi::c_int;
+    pub type c_long = i64;
+    pub type c_uchar = u8;
+    pub type c_uint = u32;
+    pub type c_ulong = usize;
+    pub type c_void = core::ffi::c_void;
+}
+
+pub(crate) mod externs {
+    use super::alloc;
+    use core::ffi::{c_char, c_int, c_void};
+
+    #[inline]
+    pub unsafe fn memset(dest: *mut c_void, value: c_int, size: usize) -> *mut c_void {
+        if value == 0 {
+            alloc::zero_bytes(dest, size);
+        } else {
+            core::ptr::write_bytes(dest.cast::<u8>(), value as u8, size);
+        }
+        dest
+    }
+
+    #[inline]
+    pub unsafe fn memcpy(dest: *mut c_void, src: *const c_void, size: usize) -> *mut c_void {
+        alloc::copy_bytes(dest, src, size);
+        dest
+    }
+
+    #[inline]
+    pub unsafe fn memmove(dest: *mut c_void, src: *const c_void, size: usize) -> *mut c_void {
+        alloc::move_bytes(dest, src, size);
+        dest
+    }
+
+    #[inline]
+    pub unsafe fn strcmp(lhs: *const c_char, rhs: *const c_char) -> c_int {
+        alloc::compare_c_strings(lhs, rhs)
+    }
+
+    #[inline]
+    pub unsafe fn strlen(input: *const c_char) -> usize {
+        alloc::c_string_len(input)
+    }
+}
+
+pub(crate) mod success {
+    use core::ops::Deref;
+
+    pub const OK: Success = Success { ok: true };
+    pub const FAIL: Success = Success { ok: false };
+
+    #[must_use]
+    pub struct Success {
+        pub ok: bool,
+    }
+
+    pub struct Failure {
+        pub fail: bool,
+    }
+
+    impl Deref for Success {
+        type Target = Failure;
+
+        fn deref(&self) -> &Self::Target {
+            if self.ok {
+                &Failure { fail: false }
+            } else {
+                &Failure { fail: true }
+            }
+        }
+    }
+}
+
+pub(crate) mod yaml {
+    pub type ptrdiff_t = i64;
+    pub type size_t = usize;
+    pub type yaml_char_t = crate::yaml_char_t;
+
+    #[repr(C)]
+    #[derive(Copy, Clone)]
+    pub struct yaml_string_t {
+        pub start: *mut yaml_char_t,
+        pub end: *mut yaml_char_t,
+        pub pointer: *mut yaml_char_t,
+    }
+
+    pub const NULL_STRING: yaml_string_t = yaml_string_t {
+        start: core::ptr::null_mut(),
+        end: core::ptr::null_mut(),
+        pointer: core::ptr::null_mut(),
+    };
+}
 
 const YAML_VERSION_MAJOR: c_int = 0;
 const YAML_VERSION_MINOR: c_int = 2;
@@ -193,4 +309,20 @@ pub unsafe extern "C" fn yaml_queue_extend(
             None => 0,
         }
     })
+}
+
+pub(crate) trait PointerExt: Sized {
+    fn c_offset_from(self, origin: Self) -> isize;
+}
+
+impl<T> PointerExt for *const T {
+    fn c_offset_from(self, origin: *const T) -> isize {
+        (self as isize - origin as isize) / size_of::<T>() as isize
+    }
+}
+
+impl<T> PointerExt for *mut T {
+    fn c_offset_from(self, origin: *mut T) -> isize {
+        (self as isize - origin as isize) / size_of::<T>() as isize
+    }
 }
