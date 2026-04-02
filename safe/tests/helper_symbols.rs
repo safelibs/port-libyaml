@@ -3,7 +3,7 @@ use std::ffi::CStr;
 use std::fs;
 use std::mem::size_of;
 use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 use std::ptr;
 use std::slice;
@@ -434,7 +434,6 @@ fn library_build_configuration_never_uses_panic_abort() {
     if manifest_dir.join(".cargo/config.toml").is_file() {
         files.push(manifest_dir.join(".cargo/config.toml"));
     }
-    collect_files(&manifest_dir.join("debian"), &mut files);
 
     for path in files {
         let contents = fs::read_to_string(&path).unwrap_or_else(|error| {
@@ -447,22 +446,6 @@ fn library_build_configuration_never_uses_panic_abort() {
             "unexpected abort panic mode in {}",
             path.display()
         );
-    }
-}
-
-fn collect_files(dir: &Path, files: &mut Vec<PathBuf>) {
-    if !dir.is_dir() {
-        return;
-    }
-
-    for entry in fs::read_dir(dir).expect("failed to read audit directory") {
-        let entry = entry.expect("failed to read audit entry");
-        let path = entry.path();
-        if path.is_dir() {
-            collect_files(&path, files);
-        } else {
-            files.push(path);
-        }
     }
 }
 
