@@ -96,6 +96,34 @@ fn helper_exports_preserve_offsets_and_contents() {
         yaml_free(join_start.cast());
         yaml_free(rhs_start.cast());
 
+        let mut null_end_lhs_start = yaml_malloc(4).cast::<yaml_char_t>();
+        assert!(!null_end_lhs_start.is_null());
+        ptr::write_bytes(null_end_lhs_start, 0, 4);
+        *null_end_lhs_start.add(0) = b'L';
+        let mut null_end_lhs_pointer = null_end_lhs_start.add(1);
+        let mut null_end_lhs_end = null_end_lhs_start.add(4);
+
+        let mut null_end_rhs_start = yaml_malloc(2).cast::<yaml_char_t>();
+        assert!(!null_end_rhs_start.is_null());
+        *null_end_rhs_start.add(0) = b'R';
+        *null_end_rhs_start.add(1) = b'S';
+        let mut null_end_rhs_pointer = null_end_rhs_start.add(2);
+
+        assert_eq!(
+            yaml_string_join(
+                &mut null_end_lhs_start,
+                &mut null_end_lhs_pointer,
+                &mut null_end_lhs_end,
+                &mut null_end_rhs_start,
+                &mut null_end_rhs_pointer,
+                ptr::null_mut(),
+            ),
+            1
+        );
+        assert_eq!(slice::from_raw_parts(null_end_lhs_start, 3), b"LRS");
+        yaml_free(null_end_lhs_start.cast());
+        yaml_free(null_end_rhs_start.cast());
+
         let mut stack_start = yaml_malloc(2 * size_of::<u32>());
         assert!(!stack_start.is_null());
         (stack_start.cast::<u32>()).add(0).write(11);

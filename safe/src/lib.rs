@@ -12,7 +12,7 @@ mod internal {
 
 use core::ffi::{c_char, c_int, c_void};
 
-use crate::internal::buffer::RawBufferTriplet;
+use crate::internal::buffer::{used_bytes_from_pair, RawBufferTriplet};
 use crate::internal::queue::RawQueueQuad;
 use crate::internal::stack::RawStackTriplet;
 
@@ -103,16 +103,15 @@ pub unsafe extern "C" fn yaml_string_join(
             Some(view) => view,
             None => return 0,
         };
-        let b = match RawBufferTriplet::from_raw(b_start, b_pointer, _b_end) {
-            Some(view) => view,
-            None => return 0,
-        };
-
-        if b.start_value() == b.pointer_value() {
+        if b_start.is_null() || b_pointer.is_null() {
+            return 0;
+        }
+        let b_start_value = *b_start;
+        let b_pointer_value = *b_pointer;
+        if b_start_value == b_pointer_value {
             return 1;
         }
-
-        let source_len = match b.used_bytes() {
+        let source_len = match used_bytes_from_pair(b_start_value, b_pointer_value) {
             Some(value) => value,
             None => return 0,
         };
@@ -134,7 +133,7 @@ pub unsafe extern "C" fn yaml_string_join(
             }
         }
 
-        alloc::copy_bytes(a.pointer_value().cast(), b.start_value().cast(), source_len);
+        alloc::copy_bytes(a.pointer_value().cast(), b_start_value.cast(), source_len);
         *a_pointer = a.pointer_value().add(source_len);
 
         1

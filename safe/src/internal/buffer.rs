@@ -36,11 +36,6 @@ impl<'a> RawBufferTriplet<'a> {
         *self.end
     }
 
-    pub fn used_bytes(&self) -> Option<usize> {
-        byte_span(self.start_value(), self.pointer_value(), self.end_value())
-            .map(|(_, used, _)| used)
-    }
-
     pub fn available_bytes(&self) -> Option<usize> {
         byte_span(self.start_value(), self.pointer_value(), self.end_value())
             .map(|(_, used, capacity)| capacity.saturating_sub(used))
@@ -75,6 +70,10 @@ impl<'a> RawBufferTriplet<'a> {
     }
 }
 
+pub fn used_bytes_from_pair(start: *mut yaml_char_t, pointer: *mut yaml_char_t) -> Option<usize> {
+    byte_pair_span(start, pointer).map(|(_, used)| used)
+}
+
 fn byte_span(
     start: *mut yaml_char_t,
     pointer: *mut yaml_char_t,
@@ -97,4 +96,23 @@ fn byte_span(
     }
 
     Some((start_addr, pointer_addr - start_addr, end_addr - start_addr))
+}
+
+fn byte_pair_span(start: *mut yaml_char_t, pointer: *mut yaml_char_t) -> Option<(usize, usize)> {
+    let start_addr = start as usize;
+    let pointer_addr = pointer as usize;
+
+    if start_addr == 0 {
+        return if pointer.is_null() {
+            Some((0, 0))
+        } else {
+            None
+        };
+    }
+
+    if pointer_addr < start_addr {
+        return None;
+    }
+
+    Some((start_addr, pointer_addr - start_addr))
 }
