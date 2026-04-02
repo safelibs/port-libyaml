@@ -16,12 +16,13 @@ foreach(name IN ITEMS
   run-parser
   run-parser-test-suite
   run-scanner
+  test-api
   test-reader
   test-version
   )
   add_yaml_executable(${name})
 endforeach()
 
+add_test(NAME api COMMAND test-api)
 add_test(NAME version COMMAND test-version)
 add_test(NAME reader COMMAND test-reader)
-
