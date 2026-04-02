@@ -267,8 +267,9 @@ unsafe fn yaml_emitter_append_tag_directive(
     if copy.handle.is_null() || copy.prefix.is_null() {
         (*emitter).error = YAML_MEMORY_ERROR;
     } else {
-        PUSH!((*emitter), (*emitter).tag_directives, copy);
-        return OK;
+        if PUSH!((*emitter), (*emitter).tag_directives, copy) != crate::FAIL {
+            return OK;
+        }
     }
     yaml_free(copy.handle as *mut libc::c_void);
     yaml_free(copy.prefix as *mut libc::c_void);
@@ -279,13 +280,16 @@ unsafe fn yaml_emitter_increase_indent(
     mut emitter: *mut yaml_emitter_t,
     flow: bool,
     indentless: bool,
-) {
-    PUSH!((*emitter), (*emitter).indents, (*emitter).indent);
+) -> Success {
+    if PUSH!((*emitter), (*emitter).indents, (*emitter).indent) == crate::FAIL {
+        return FAIL;
+    }
     if (*emitter).indent < 0 {
         (*emitter).indent = if flow { (*emitter).best_indent } else { 0 };
     } else if !indentless {
         (*emitter).indent += (*emitter).best_indent;
     }
+    OK
 }
 
 unsafe fn yaml_emitter_state_machine(
@@ -604,7 +608,9 @@ unsafe fn yaml_emitter_emit_document_content(
     mut emitter: *mut yaml_emitter_t,
     event: *mut yaml_event_t,
 ) -> Success {
-    PUSH!((*emitter), (*emitter).states, YAML_EMIT_DOCUMENT_END_STATE);
+    if PUSH!((*emitter), (*emitter).states, YAML_EMIT_DOCUMENT_END_STATE) == crate::FAIL {
+        return FAIL;
+    }
     yaml_emitter_emit_node(emitter, event, true, false, false, false)
 }
 
@@ -669,7 +675,9 @@ unsafe fn yaml_emitter_emit_flow_sequence_item(
         {
             return FAIL;
         }
-        yaml_emitter_increase_indent(emitter, true, false);
+        if yaml_emitter_increase_indent(emitter, true, false).fail {
+            return FAIL;
+        }
         let fresh12 = addr_of_mut!((*emitter).flow_level);
         *fresh12 += 1;
     }
@@ -725,7 +733,9 @@ unsafe fn yaml_emitter_emit_flow_sequence_item(
             return FAIL;
         }
     }
-    PUSH!((*emitter), (*emitter).states, YAML_EMIT_FLOW_SEQUENCE_ITEM_STATE);
+    if PUSH!((*emitter), (*emitter).states, YAML_EMIT_FLOW_SEQUENCE_ITEM_STATE) == crate::FAIL {
+        return FAIL;
+    }
     yaml_emitter_emit_node(emitter, event, false, true, false, false)
 }
 
@@ -746,7 +756,9 @@ unsafe fn yaml_emitter_emit_flow_mapping_key(
         {
             return FAIL;
         }
-        yaml_emitter_increase_indent(emitter, true, false);
+        if yaml_emitter_increase_indent(emitter, true, false).fail {
+            return FAIL;
+        }
         let fresh18 = addr_of_mut!((*emitter).flow_level);
         *fresh18 += 1;
     }
@@ -806,7 +818,14 @@ unsafe fn yaml_emitter_emit_flow_mapping_key(
         }
     }
     if !flag((*emitter).canonical) && yaml_emitter_check_simple_key(emitter) {
-        PUSH!((*emitter), (*emitter).states, YAML_EMIT_FLOW_MAPPING_SIMPLE_VALUE_STATE);
+        if PUSH!(
+            (*emitter),
+            (*emitter).states,
+            YAML_EMIT_FLOW_MAPPING_SIMPLE_VALUE_STATE
+        ) == crate::FAIL
+        {
+            return FAIL;
+        }
         yaml_emitter_emit_node(emitter, event, false, false, true, true)
     } else {
         if yaml_emitter_write_indicator(
@@ -820,7 +839,11 @@ unsafe fn yaml_emitter_emit_flow_mapping_key(
         {
             return FAIL;
         }
-        PUSH!((*emitter), (*emitter).states, YAML_EMIT_FLOW_MAPPING_VALUE_STATE);
+        if PUSH!((*emitter), (*emitter).states, YAML_EMIT_FLOW_MAPPING_VALUE_STATE)
+            == crate::FAIL
+        {
+            return FAIL;
+        }
         yaml_emitter_emit_node(emitter, event, false, false, true, false)
     }
 }
@@ -860,7 +883,9 @@ unsafe fn yaml_emitter_emit_flow_mapping_value(
             return FAIL;
         }
     }
-    PUSH!((*emitter), (*emitter).states, YAML_EMIT_FLOW_MAPPING_KEY_STATE);
+    if PUSH!((*emitter), (*emitter).states, YAML_EMIT_FLOW_MAPPING_KEY_STATE) == crate::FAIL {
+        return FAIL;
+    }
     yaml_emitter_emit_node(emitter, event, false, false, true, false)
 }
 
@@ -870,11 +895,15 @@ unsafe fn yaml_emitter_emit_block_sequence_item(
     first: bool,
 ) -> Success {
     if first {
-        yaml_emitter_increase_indent(
+        if yaml_emitter_increase_indent(
             emitter,
             false,
             flag((*emitter).mapping_context) && !flag((*emitter).indention),
-        );
+        )
+        .fail
+        {
+            return FAIL;
+        }
     }
     if (*event).r#type == YAML_SEQUENCE_END_EVENT {
         (*emitter).indent = POP!((*emitter).indents);
@@ -895,7 +924,9 @@ unsafe fn yaml_emitter_emit_block_sequence_item(
     {
         return FAIL;
     }
-    PUSH!((*emitter), (*emitter).states, YAML_EMIT_BLOCK_SEQUENCE_ITEM_STATE);
+    if PUSH!((*emitter), (*emitter).states, YAML_EMIT_BLOCK_SEQUENCE_ITEM_STATE) == crate::FAIL {
+        return FAIL;
+    }
     yaml_emitter_emit_node(emitter, event, false, true, false, false)
 }
 
@@ -905,7 +936,9 @@ unsafe fn yaml_emitter_emit_block_mapping_key(
     first: bool,
 ) -> Success {
     if first {
-        yaml_emitter_increase_indent(emitter, false, false);
+        if yaml_emitter_increase_indent(emitter, false, false).fail {
+            return FAIL;
+        }
     }
     if (*event).r#type == YAML_MAPPING_END_EVENT {
         (*emitter).indent = POP!((*emitter).indents);
@@ -916,11 +949,14 @@ unsafe fn yaml_emitter_emit_block_mapping_key(
         return FAIL;
     }
     if yaml_emitter_check_simple_key(emitter) {
-        PUSH!(
+        if PUSH!(
             (*emitter),
             (*emitter).states,
             YAML_EMIT_BLOCK_MAPPING_SIMPLE_VALUE_STATE
-        );
+        ) == crate::FAIL
+        {
+            return FAIL;
+        }
         yaml_emitter_emit_node(emitter, event, false, false, true, true)
     } else {
         if yaml_emitter_write_indicator(
@@ -934,7 +970,11 @@ unsafe fn yaml_emitter_emit_block_mapping_key(
         {
             return FAIL;
         }
-        PUSH!((*emitter), (*emitter).states, YAML_EMIT_BLOCK_MAPPING_VALUE_STATE);
+        if PUSH!((*emitter), (*emitter).states, YAML_EMIT_BLOCK_MAPPING_VALUE_STATE)
+            == crate::FAIL
+        {
+            return FAIL;
+        }
         yaml_emitter_emit_node(emitter, event, false, false, true, false)
     }
 }
@@ -972,7 +1012,9 @@ unsafe fn yaml_emitter_emit_block_mapping_value(
             return FAIL;
         }
     }
-    PUSH!((*emitter), (*emitter).states, YAML_EMIT_BLOCK_MAPPING_KEY_STATE);
+    if PUSH!((*emitter), (*emitter).states, YAML_EMIT_BLOCK_MAPPING_KEY_STATE) == crate::FAIL {
+        return FAIL;
+    }
     yaml_emitter_emit_node(emitter, event, false, false, true, false)
 }
 
@@ -1030,7 +1072,9 @@ unsafe fn yaml_emitter_emit_scalar(
     if yaml_emitter_process_tag(emitter).fail {
         return FAIL;
     }
-    yaml_emitter_increase_indent(emitter, true, false);
+    if yaml_emitter_increase_indent(emitter, true, false).fail {
+        return FAIL;
+    }
     if yaml_emitter_process_scalar(emitter).fail {
         return FAIL;
     }

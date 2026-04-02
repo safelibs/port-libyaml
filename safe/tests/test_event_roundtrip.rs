@@ -279,6 +279,112 @@ fn emitter_enqueue_failures_still_consume_and_destroy_the_event() {
 }
 
 #[test]
+fn emitter_state_push_failures_report_memory_errors() {
+    unsafe {
+        let mut emitter = mem::zeroed::<yaml_emitter_t>();
+        let mut output = [0u8; 64];
+        let mut written = 0usize;
+        let mut event = mem::zeroed::<yaml_event_t>();
+        let scalar = b"owned-value";
+
+        assert_eq!(yaml_emitter_initialize(&mut emitter), 1);
+        yaml_emitter_set_output_string(&mut emitter, output.as_mut_ptr(), output.len(), &mut written);
+
+        assert_eq!(
+            yaml_stream_start_event_initialize(&mut event, yaml::yaml_encoding_t::YAML_UTF8_ENCODING),
+            1
+        );
+        assert_eq!(yaml_emitter_emit(&mut emitter, &mut event), 1);
+
+        assert_eq!(
+            yaml_document_start_event_initialize(&mut event, ptr::null_mut(), ptr::null_mut(), ptr::null_mut(), 0),
+            1
+        );
+        assert_eq!(yaml_emitter_emit(&mut emitter, &mut event), 1);
+
+        assert_eq!(
+            yaml_scalar_event_initialize(
+                &mut event,
+                ptr::null(),
+                ptr::null(),
+                scalar.as_ptr(),
+                scalar.len() as i32,
+                1,
+                1,
+                yaml_scalar_style_t::YAML_PLAIN_SCALAR_STYLE,
+            ),
+            1
+        );
+
+        let original_top = emitter.states.top;
+        let original_end = emitter.states.end;
+        let invalid_top = emitter.states.start.wrapping_sub(1);
+        emitter.states.top = invalid_top;
+        emitter.states.end = invalid_top;
+
+        assert_eq!(yaml_emitter_emit(&mut emitter, &mut event), 0);
+        assert_eq!(emitter.error, yaml_error_type_t::YAML_MEMORY_ERROR);
+
+        emitter.states.top = original_top;
+        emitter.states.end = original_end;
+        yaml_emitter_delete(&mut emitter);
+    }
+}
+
+#[test]
+fn emitter_indent_push_failures_report_memory_errors() {
+    unsafe {
+        let mut emitter = mem::zeroed::<yaml_emitter_t>();
+        let mut output = [0u8; 64];
+        let mut written = 0usize;
+        let mut event = mem::zeroed::<yaml_event_t>();
+        let scalar = b"owned-value";
+
+        assert_eq!(yaml_emitter_initialize(&mut emitter), 1);
+        yaml_emitter_set_output_string(&mut emitter, output.as_mut_ptr(), output.len(), &mut written);
+
+        assert_eq!(
+            yaml_stream_start_event_initialize(&mut event, yaml::yaml_encoding_t::YAML_UTF8_ENCODING),
+            1
+        );
+        assert_eq!(yaml_emitter_emit(&mut emitter, &mut event), 1);
+
+        assert_eq!(
+            yaml_document_start_event_initialize(&mut event, ptr::null_mut(), ptr::null_mut(), ptr::null_mut(), 0),
+            1
+        );
+        assert_eq!(yaml_emitter_emit(&mut emitter, &mut event), 1);
+
+        assert_eq!(
+            yaml_scalar_event_initialize(
+                &mut event,
+                ptr::null(),
+                ptr::null(),
+                scalar.as_ptr(),
+                scalar.len() as i32,
+                1,
+                1,
+                yaml_scalar_style_t::YAML_PLAIN_SCALAR_STYLE,
+            ),
+            1
+        );
+
+        let original_top = emitter.indents.top;
+        let original_end = emitter.indents.end;
+        let invalid_top = emitter.indents.start.wrapping_sub(1);
+        emitter.indents.top = invalid_top;
+        emitter.indents.end = invalid_top;
+
+        assert_eq!(yaml_emitter_emit(&mut emitter, &mut event), 0);
+        assert_eq!(emitter.error, yaml_error_type_t::YAML_MEMORY_ERROR);
+
+        emitter.indents.top = original_top;
+        emitter.indents.end = original_end;
+        yaml_emitter_delete(&mut emitter);
+    }
+}
+
+#[test]
 fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
     ensure_rg_wrapper_accepts_doubly_escaped_parentheses();
 
