@@ -1,0 +1,10 @@
+[package]
+name = "yaml"
+version = "0.2.5"
+edition = "2021"
+build = "build.rs"
+publish = false
+
+[lib]
+name = "yaml"
+crate-type = ["rlib", "cdylib", "staticlib"]

@@ -1,0 +1,10 @@
+yaml_free
+yaml_get_version
+yaml_get_version_string
+yaml_malloc
+yaml_queue_extend
+yaml_realloc
+yaml_stack_extend
+yaml_strdup
+yaml_string_extend
+yaml_string_join
