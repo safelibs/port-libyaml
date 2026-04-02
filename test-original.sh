@@ -55,7 +55,8 @@ FROM ubuntu:24.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update \
+RUN sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources \
+ && apt-get update \
  && apt-get install -y --no-install-recommends \
       autoconf \
       automake \
@@ -64,8 +65,8 @@ RUN apt-get update \
       ca-certificates \
       crystal \
       h2o \
+      libcamera-dev \
       libcamera-ipa \
-      libcamera-tools \
       libtool \
       netplan.io \
       php8.3-cli \
@@ -78,7 +79,58 @@ RUN apt-get update \
       ser2net \
       strace \
       stubby \
-      suricata \
+      suricata
+
+RUN mkdir -p /tmp/libcamera-src \
+ && cd /tmp/libcamera-src \
+ && apt-get source libcamera
+
+RUN cat > /tmp/libcamera-yaml-smoke.cpp <<'CPP'
+#include <iostream>
+#include <memory>
+
+#include <libcamera/base/file.h>
+#include "libcamera/internal/yaml_parser.h"
+
+int main()
+{
+    libcamera::File file("/usr/share/libcamera/ipa/ipu3/uncalibrated.yaml");
+    if (file.open(libcamera::File::OpenModeFlag::ReadOnly) == false) {
+        std::cerr << "open failed\n";
+        return 1;
+    }
+
+    std::unique_ptr<libcamera::YamlObject> root = libcamera::YamlParser::parse(file);
+    if (root.get() == nullptr) {
+        std::cerr << "parse failed\n";
+        return 1;
+    }
+
+    if (root->contains("algorithms") == false) {
+        std::cerr << "missing algorithms\n";
+        return 1;
+    }
+
+    const libcamera::YamlObject &algorithms = (*root)["algorithms"];
+    if (algorithms.size() == 0) {
+        std::cerr << "empty algorithms\n";
+        return 1;
+    }
+
+    std::cout << "algorithms=" << algorithms.size() << "\n";
+    return 0;
+}
+CPP
+
+RUN LIBCAMERA_SRC_DIR="$(echo /tmp/libcamera-src/libcamera-*/)" \
+ && c++ -std=c++17 -DLIBCAMERA_BASE_PRIVATE \
+      -I"${LIBCAMERA_SRC_DIR}include" \
+      $(pkg-config --cflags libcamera) \
+      /tmp/libcamera-yaml-smoke.cpp \
+      -o /usr/local/bin/libcamera-yaml-smoke \
+      $(pkg-config --libs libcamera) \
+ && /usr/local/bin/libcamera-yaml-smoke >/tmp/libcamera-yaml-build.log \
+ && rm -rf /tmp/libcamera-src /tmp/libcamera-yaml-smoke.cpp /tmp/libcamera-yaml-build.log \
  && rm -rf /var/lib/apt/lists/*
 
 COPY original /src/libyaml
@@ -219,7 +271,9 @@ log "h2o"
 h2o -t -c /etc/h2o/h2o.conf >/tmp/h2o.log 2>&1
 
 log "libcamera0.2"
-strace -f -e trace=openat cam --list >/tmp/libcamera.log 2>/tmp/libcamera.strace
+strace -f -e trace=openat libcamera-yaml-smoke >/tmp/libcamera.log 2>/tmp/libcamera.strace
+require_contains /tmp/libcamera.log "algorithms="
+require_contains /tmp/libcamera.strace "/usr/share/libcamera/ipa/ipu3/uncalibrated.yaml"
 require_contains /tmp/libcamera.strace "/usr/local/lib/libyaml-0.so.2"
 
 log "libappstream5"
