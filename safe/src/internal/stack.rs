@@ -27,7 +27,7 @@ impl<'a> RawStackTriplet<'a> {
     pub unsafe fn extend(&mut self) -> bool {
         let (top_offset, span) = match span(self.start_value(), self.top_value(), self.end_value())
         {
-            Some((top_offset, span)) if span != 0 => (top_offset, span),
+            Some((top_offset, span)) => (top_offset, span),
             _ => return false,
         };
 
@@ -69,7 +69,15 @@ fn span(start: *mut c_void, top: *mut c_void, end: *mut c_void) -> Option<(usize
     let top_addr = top as usize;
     let end_addr = end as usize;
 
-    if start_addr == 0 || top_addr < start_addr || top_addr > end_addr || end_addr < start_addr {
+    if start_addr == 0 {
+        return if top.is_null() && end.is_null() {
+            Some((0, 0))
+        } else {
+            None
+        };
+    }
+
+    if top_addr < start_addr || top_addr > end_addr || end_addr < start_addr {
         return None;
     }
 

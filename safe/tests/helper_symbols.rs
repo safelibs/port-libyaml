@@ -175,6 +175,54 @@ fn helper_exports_preserve_offsets_and_contents() {
 }
 
 #[test]
+fn helper_exports_accept_zero_capacity_states() {
+    unsafe {
+        let mut string_start = ptr::null_mut::<yaml_char_t>();
+        let mut string_pointer = ptr::null_mut::<yaml_char_t>();
+        let mut string_end = ptr::null_mut::<yaml_char_t>();
+        assert_eq!(
+            yaml_string_extend(&mut string_start, &mut string_pointer, &mut string_end),
+            1
+        );
+        assert!(!string_start.is_null());
+        assert_eq!(string_pointer, string_start);
+        assert_eq!(string_end, string_start);
+        yaml_free(string_start.cast());
+
+        let mut stack_start = ptr::null_mut();
+        let mut stack_top = ptr::null_mut();
+        let mut stack_end = ptr::null_mut();
+        assert_eq!(
+            yaml_stack_extend(&mut stack_start, &mut stack_top, &mut stack_end),
+            1
+        );
+        assert!(!stack_start.is_null());
+        assert_eq!(stack_top, stack_start);
+        assert_eq!(stack_end, stack_start);
+        yaml_free(stack_start);
+
+        let mut queue_start = ptr::null_mut();
+        let mut queue_head = ptr::null_mut();
+        let mut queue_tail = ptr::null_mut();
+        let mut queue_end = ptr::null_mut();
+        assert_eq!(
+            yaml_queue_extend(
+                &mut queue_start,
+                &mut queue_head,
+                &mut queue_tail,
+                &mut queue_end
+            ),
+            1
+        );
+        assert!(!queue_start.is_null());
+        assert_eq!(queue_head, queue_start);
+        assert_eq!(queue_tail, queue_start);
+        assert_eq!(queue_end, queue_start);
+        yaml_free(queue_start);
+    }
+}
+
+#[test]
 fn staged_install_exports_only_phase_1_symbols_and_runs_upstream_version_test() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let repo_root = manifest_dir

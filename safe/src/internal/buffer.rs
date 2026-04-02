@@ -49,7 +49,7 @@ impl<'a> RawBufferTriplet<'a> {
     pub unsafe fn extend(&mut self) -> bool {
         let (start_addr, pointer_offset, capacity) =
             match byte_span(self.start_value(), self.pointer_value(), self.end_value()) {
-                Some((start_addr, used, capacity)) if capacity != 0 => (start_addr, used, capacity),
+                Some((start_addr, used, capacity)) => (start_addr, used, capacity),
                 _ => return false,
             };
 
@@ -84,11 +84,15 @@ fn byte_span(
     let pointer_addr = pointer as usize;
     let end_addr = end as usize;
 
-    if start_addr == 0
-        || pointer_addr < start_addr
-        || pointer_addr > end_addr
-        || end_addr < start_addr
-    {
+    if start_addr == 0 {
+        return if pointer.is_null() && end.is_null() {
+            Some((0, 0, 0))
+        } else {
+            None
+        };
+    }
+
+    if pointer_addr < start_addr || pointer_addr > end_addr || end_addr < start_addr {
         return None;
     }
 

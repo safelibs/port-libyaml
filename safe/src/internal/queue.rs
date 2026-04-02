@@ -34,7 +34,7 @@ impl<'a> RawQueueQuad<'a> {
             self.tail_value(),
             self.end_value(),
         ) {
-            Some(values) if values.2 != 0 => values,
+            Some(values) => values,
             _ => return false,
         };
 
@@ -105,8 +105,15 @@ fn span(
     let tail_addr = tail as usize;
     let end_addr = end as usize;
 
-    if start_addr == 0
-        || head_addr < start_addr
+    if start_addr == 0 {
+        return if head.is_null() && tail.is_null() && end.is_null() {
+            Some((0, 0, 0))
+        } else {
+            None
+        };
+    }
+
+    if head_addr < start_addr
         || head_addr > tail_addr
         || tail_addr > end_addr
         || end_addr < start_addr
