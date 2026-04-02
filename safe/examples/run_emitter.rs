@@ -37,7 +37,11 @@ fn main() {
             let mut originals = Vec::<yaml_event_t>::new();
             let mut failed = false;
 
-            print!("[{}] Parsing, emitting, and parsing again '{}': ", index + 1, path);
+            print!(
+                "[{}] Parsing, emitting, and parsing again '{}': ",
+                index + 1,
+                path
+            );
             assert_eq!(yaml_parser_initialize(&mut parser), 1);
             yaml_parser_set_input_string(&mut parser, input.as_ptr(), input.len());
             assert_eq!(yaml_emitter_initialize(&mut emitter), 1);
@@ -87,7 +91,10 @@ fn main() {
             if failed {
                 eprintln!("FAILURE");
                 if !parser.problem.is_null() {
-                    eprintln!("{}", CStr::from_ptr(parser.problem.cast()).to_string_lossy());
+                    eprintln!(
+                        "{}",
+                        CStr::from_ptr(parser.problem.cast()).to_string_lossy()
+                    );
                 }
             } else {
                 println!("PASSED (length: {written})");
@@ -163,7 +170,8 @@ unsafe fn same_kind(lhs: &yaml_event_t, rhs: &yaml_event_t) -> bool {
 
     match lhs.r#type {
         yaml_event_type_t::YAML_ALIAS_EVENT => {
-            CStr::from_ptr(lhs.data.alias.anchor.cast()) == CStr::from_ptr(rhs.data.alias.anchor.cast())
+            CStr::from_ptr(lhs.data.alias.anchor.cast())
+                == CStr::from_ptr(rhs.data.alias.anchor.cast())
         }
         yaml_event_type_t::YAML_SCALAR_EVENT => {
             lhs.data.scalar.length == rhs.data.scalar.length

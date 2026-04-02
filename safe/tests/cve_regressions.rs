@@ -19,7 +19,7 @@ struct ScanOutcome {
 }
 
 #[test]
-fn wrapped_scalar_trigger_returns_scanner_error_instead_of_aborting() {
+fn cve_2014_9130_wrapped_scalar_trigger_returns_scanner_error_instead_of_aborting() {
     let trigger = b"a: \"\\n\"     b: true\n";
     let outcome = scan_all(trigger);
 
@@ -38,9 +38,8 @@ fn wrapped_scalar_trigger_returns_scanner_error_instead_of_aborting() {
 fn clusterfuzz_fixture_returns_recoverable_scanner_error() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let fixture = fs::read(
-        manifest_dir.join(
-            "compat/regression-inputs/clusterfuzz-testcase-minimized-5607885063061504.yml",
-        ),
+        manifest_dir
+            .join("compat/regression-inputs/clusterfuzz-testcase-minimized-5607885063061504.yml"),
     )
     .expect("failed to read clusterfuzz regression fixture");
 

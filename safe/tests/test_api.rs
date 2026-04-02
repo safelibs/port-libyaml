@@ -21,8 +21,8 @@ use yaml::{
     yaml_emitter_set_width, yaml_emitter_t, yaml_event_delete, yaml_event_t,
     yaml_mapping_end_event_initialize, yaml_mapping_start_event_initialize, yaml_mapping_style_t,
     yaml_node_t, yaml_node_type_t, yaml_parser_delete, yaml_parser_initialize, yaml_parser_load,
-    yaml_parser_parse, yaml_parser_set_encoding, yaml_parser_set_input, yaml_parser_set_input_string,
-    yaml_parser_t, yaml_scalar_event_initialize, yaml_scalar_style_t,
+    yaml_parser_parse, yaml_parser_set_encoding, yaml_parser_set_input,
+    yaml_parser_set_input_string, yaml_parser_t, yaml_scalar_event_initialize, yaml_scalar_style_t,
     yaml_sequence_end_event_initialize, yaml_sequence_start_event_initialize,
     yaml_sequence_style_t, yaml_stream_end_event_initialize, yaml_stream_start_event_initialize,
     yaml_tag_directive_t, yaml_version_directive_t,
@@ -39,8 +39,8 @@ const EXAMPLE_TAG_PREFIX: &[u8] = b"tag:example.com,2026:\0";
 const EXAMPLE_TEXT_TAG: &[u8] = b"tag:example.com,2026:text\0";
 const UTF8_GREETING: &[u8] = b"Hi is \xD0\x9F\xD1\x80\xD0\xB8\xD0\xB2\xD0\xB5\xD1\x82";
 const UTF16LE_GREETING_NO_BOM: &[u8] = &[
-    b'H', 0x00, b'i', 0x00, b' ', 0x00, b'i', 0x00, b's', 0x00, b' ', 0x00, 0x1f, 0x04, 0x40,
-    0x04, 0x38, 0x04, 0x32, 0x04, 0x35, 0x04, 0x42, 0x04,
+    b'H', 0x00, b'i', 0x00, b' ', 0x00, b'i', 0x00, b's', 0x00, b' ', 0x00, 0x1f, 0x04, 0x40, 0x04,
+    0x38, 0x04, 0x32, 0x04, 0x35, 0x04, 0x42, 0x04,
 ];
 
 #[repr(C)]
@@ -117,7 +117,10 @@ fn encoding_controls_match_upstream_test_api() {
             UTF16LE_GREETING_NO_BOM.len(),
         );
         yaml_parser_set_encoding(&mut parser, yaml::yaml_encoding_t::YAML_UTF16LE_ENCODING);
-        assert_eq!(parser.encoding, yaml::yaml_encoding_t::YAML_UTF16LE_ENCODING);
+        assert_eq!(
+            parser.encoding,
+            yaml::yaml_encoding_t::YAML_UTF16LE_ENCODING
+        );
         assert_eq!(yaml_parser_load(&mut parser, &mut parsed), 1);
         assert_scalar_node(
             yaml_document_get_root_node(&mut parsed),
@@ -129,9 +132,17 @@ fn encoding_controls_match_upstream_test_api() {
 
         build_scalar_document(&mut emitted, UTF8_GREETING);
         assert_eq!(yaml_emitter_initialize(&mut emitter), 1);
-        yaml_emitter_set_output_string(&mut emitter, output.as_mut_ptr(), output.len(), &mut written);
+        yaml_emitter_set_output_string(
+            &mut emitter,
+            output.as_mut_ptr(),
+            output.len(),
+            &mut written,
+        );
         yaml_emitter_set_encoding(&mut emitter, yaml::yaml_encoding_t::YAML_UTF16LE_ENCODING);
-        assert_eq!(emitter.encoding, yaml::yaml_encoding_t::YAML_UTF16LE_ENCODING);
+        assert_eq!(
+            emitter.encoding,
+            yaml::yaml_encoding_t::YAML_UTF16LE_ENCODING
+        );
         assert_eq!(yaml_emitter_open(&mut emitter), 1);
         assert_eq!(yaml_emitter_dump(&mut emitter, &mut emitted), 1);
         assert_eq!(yaml_emitter_close(&mut emitter), 1);
@@ -173,7 +184,12 @@ fn document_api_roundtrip_matches_upstream_test_api() {
 
         build_roundtrip_document(&mut emitted);
         assert_eq!(yaml_emitter_initialize(&mut emitter), 1);
-        yaml_emitter_set_output_string(&mut emitter, output.as_mut_ptr(), output.len(), &mut written);
+        yaml_emitter_set_output_string(
+            &mut emitter,
+            output.as_mut_ptr(),
+            output.len(),
+            &mut written,
+        );
         yaml_emitter_set_indent(&mut emitter, 3);
         yaml_emitter_set_width(&mut emitter, 48);
         yaml_emitter_set_unicode(&mut emitter, 1);
@@ -201,8 +217,14 @@ fn document_api_roundtrip_matches_upstream_test_api() {
             buffer_contains(&output[..written], b"message: "),
             "{emitted_text}"
         );
-        assert!(buffer_contains(&output[..written], b"meta:"), "{emitted_text}");
-        assert!(buffer_contains(&output[..written], b"count"), "{emitted_text}");
+        assert!(
+            buffer_contains(&output[..written], b"meta:"),
+            "{emitted_text}"
+        );
+        assert!(
+            buffer_contains(&output[..written], b"count"),
+            "{emitted_text}"
+        );
         assert_crlf_line_breaks(&output[..written]);
 
         assert_eq!(yaml_parser_initialize(&mut parser), 1);
@@ -278,7 +300,10 @@ fn event_api_roundtrip_matches_upstream_test_api() {
 
         emit_ok(
             &mut emitter,
-            yaml_stream_start_event_initialize(&mut event, yaml::yaml_encoding_t::YAML_UTF8_ENCODING),
+            yaml_stream_start_event_initialize(
+                &mut event,
+                yaml::yaml_encoding_t::YAML_UTF8_ENCODING,
+            ),
             &mut event,
         );
         emit_ok(
@@ -403,10 +428,26 @@ fn event_api_roundtrip_matches_upstream_test_api() {
             ),
             &mut event,
         );
-        emit_ok(&mut emitter, yaml_sequence_end_event_initialize(&mut event), &mut event);
-        emit_ok(&mut emitter, yaml_mapping_end_event_initialize(&mut event), &mut event);
-        emit_ok(&mut emitter, yaml_document_end_event_initialize(&mut event, 0), &mut event);
-        emit_ok(&mut emitter, yaml_stream_end_event_initialize(&mut event), &mut event);
+        emit_ok(
+            &mut emitter,
+            yaml_sequence_end_event_initialize(&mut event),
+            &mut event,
+        );
+        emit_ok(
+            &mut emitter,
+            yaml_mapping_end_event_initialize(&mut event),
+            &mut event,
+        );
+        emit_ok(
+            &mut emitter,
+            yaml_document_end_event_initialize(&mut event, 0),
+            &mut event,
+        );
+        emit_ok(
+            &mut emitter,
+            yaml_stream_end_event_initialize(&mut event),
+            &mut event,
+        );
         assert_eq!(yaml_emitter_flush(&mut emitter), 1);
         yaml_emitter_delete(&mut emitter);
 
@@ -423,15 +464,22 @@ fn event_api_roundtrip_matches_upstream_test_api() {
         yaml_parser_set_input_string(&mut parser, output.as_ptr(), writer.written);
 
         parse_ok(&mut parser, &mut event);
-        assert_eq!(event.r#type, yaml::yaml_event_type_t::YAML_STREAM_START_EVENT);
+        assert_eq!(
+            event.r#type,
+            yaml::yaml_event_type_t::YAML_STREAM_START_EVENT
+        );
         yaml_event_delete(&mut event);
 
         parse_ok(&mut parser, &mut event);
-        assert_eq!(event.r#type, yaml::yaml_event_type_t::YAML_DOCUMENT_START_EVENT);
+        assert_eq!(
+            event.r#type,
+            yaml::yaml_event_type_t::YAML_DOCUMENT_START_EVENT
+        );
         assert_eq!((*event.data.document_start.version_directive).major, 1);
         assert_eq!((*event.data.document_start.version_directive).minor, 2);
         assert_eq!(
-            event.data
+            event
+                .data
                 .document_start
                 .tag_directives
                 .end
@@ -439,14 +487,29 @@ fn event_api_roundtrip_matches_upstream_test_api() {
             1
         );
         assert_eq!(
-            CStr::from_ptr(event.data.document_start.tag_directives.start.read().handle.cast()),
+            CStr::from_ptr(
+                event
+                    .data
+                    .document_start
+                    .tag_directives
+                    .start
+                    .read()
+                    .handle
+                    .cast()
+            ),
             cstr!("!e!")
         );
         yaml_event_delete(&mut event);
 
         parse_ok(&mut parser, &mut event);
-        assert_eq!(event.r#type, yaml::yaml_event_type_t::YAML_MAPPING_START_EVENT);
-        assert_eq!(CStr::from_ptr(event.data.mapping_start.anchor.cast()), cstr!("root"));
+        assert_eq!(
+            event.r#type,
+            yaml::yaml_event_type_t::YAML_MAPPING_START_EVENT
+        );
+        assert_eq!(
+            CStr::from_ptr(event.data.mapping_start.anchor.cast()),
+            cstr!("root")
+        );
         yaml_event_delete(&mut event);
 
         parse_ok(&mut parser, &mut event);
@@ -456,7 +519,10 @@ fn event_api_roundtrip_matches_upstream_test_api() {
 
         parse_ok(&mut parser, &mut event);
         assert_eq!(event.r#type, yaml::yaml_event_type_t::YAML_SCALAR_EVENT);
-        assert_eq!(CStr::from_ptr(event.data.scalar.anchor.cast()), cstr!("item"));
+        assert_eq!(
+            CStr::from_ptr(event.data.scalar.anchor.cast()),
+            cstr!("item")
+        );
         assert_eq!(
             CStr::from_ptr(event.data.scalar.tag.cast()),
             cstr!("tag:example.com,2026:text")
@@ -471,7 +537,10 @@ fn event_api_roundtrip_matches_upstream_test_api() {
 
         parse_ok(&mut parser, &mut event);
         assert_eq!(event.r#type, yaml::yaml_event_type_t::YAML_ALIAS_EVENT);
-        assert_eq!(CStr::from_ptr(event.data.alias.anchor.cast()), cstr!("item"));
+        assert_eq!(
+            CStr::from_ptr(event.data.alias.anchor.cast()),
+            cstr!("item")
+        );
         yaml_event_delete(&mut event);
 
         parse_ok(&mut parser, &mut event);
@@ -480,7 +549,10 @@ fn event_api_roundtrip_matches_upstream_test_api() {
         yaml_event_delete(&mut event);
 
         parse_ok(&mut parser, &mut event);
-        assert_eq!(event.r#type, yaml::yaml_event_type_t::YAML_SEQUENCE_START_EVENT);
+        assert_eq!(
+            event.r#type,
+            yaml::yaml_event_type_t::YAML_SEQUENCE_START_EVENT
+        );
         assert_eq!(
             event.data.sequence_start.style,
             yaml_sequence_style_t::YAML_FLOW_SEQUENCE_STYLE
@@ -496,15 +568,24 @@ fn event_api_roundtrip_matches_upstream_test_api() {
         yaml_event_delete(&mut event);
 
         parse_ok(&mut parser, &mut event);
-        assert_eq!(event.r#type, yaml::yaml_event_type_t::YAML_SEQUENCE_END_EVENT);
+        assert_eq!(
+            event.r#type,
+            yaml::yaml_event_type_t::YAML_SEQUENCE_END_EVENT
+        );
         yaml_event_delete(&mut event);
 
         parse_ok(&mut parser, &mut event);
-        assert_eq!(event.r#type, yaml::yaml_event_type_t::YAML_MAPPING_END_EVENT);
+        assert_eq!(
+            event.r#type,
+            yaml::yaml_event_type_t::YAML_MAPPING_END_EVENT
+        );
         yaml_event_delete(&mut event);
 
         parse_ok(&mut parser, &mut event);
-        assert_eq!(event.r#type, yaml::yaml_event_type_t::YAML_DOCUMENT_END_EVENT);
+        assert_eq!(
+            event.r#type,
+            yaml::yaml_event_type_t::YAML_DOCUMENT_END_EVENT
+        );
         yaml_event_delete(&mut event);
 
         parse_ok(&mut parser, &mut event);
@@ -535,27 +616,36 @@ fn native_phase6_examples_run() {
         String::from_utf8_lossy(&run_dumper_output.stdout),
         String::from_utf8_lossy(&run_dumper_output.stderr)
     );
-    let run_dumper_stdout = String::from_utf8(run_dumper_output.stdout).expect("run_dumper stdout utf8");
-    assert_eq!(run_dumper_stdout.matches("PASSED (length:").count(), 2, "{run_dumper_stdout}");
+    let run_dumper_stdout =
+        String::from_utf8(run_dumper_output.stdout).expect("run_dumper stdout utf8");
+    assert_eq!(
+        run_dumper_stdout.matches("PASSED (length:").count(),
+        2,
+        "{run_dumper_stdout}"
+    );
 
     let reformatter_output = run_cargo_example_with_stdin(
         &manifest_dir,
         "example_reformatter_alt",
         b"foo: [bar, {x: y}]\n",
     );
-    let reformatter_stdout = String::from_utf8(reformatter_output.stdout).expect("reformatter utf8");
+    let reformatter_stdout =
+        String::from_utf8(reformatter_output.stdout).expect("reformatter utf8");
     assert!(reformatter_stdout.contains("foo:"), "{reformatter_stdout}");
     assert!(reformatter_stdout.contains("bar"), "{reformatter_stdout}");
 
-    let deconstructor_output = run_cargo_example_with_stdin(
-        &manifest_dir,
-        "example_deconstructor_alt",
-        b"foo: bar\n",
-    );
+    let deconstructor_output =
+        run_cargo_example_with_stdin(&manifest_dir, "example_deconstructor_alt", b"foo: bar\n");
     let deconstructor_stdout =
         String::from_utf8(deconstructor_output.stdout).expect("deconstructor utf8");
-    assert!(deconstructor_stdout.contains("STREAM-START"), "{deconstructor_stdout}");
-    assert!(deconstructor_stdout.contains("SCALAR"), "{deconstructor_stdout}");
+    assert!(
+        deconstructor_stdout.contains("STREAM-START"),
+        "{deconstructor_stdout}"
+    );
+    assert!(
+        deconstructor_stdout.contains("SCALAR"),
+        "{deconstructor_stdout}"
+    );
 }
 
 #[test]
@@ -606,6 +696,13 @@ fn staged_install_runs_phase6_c_probes_and_tools() {
         &run_dumper_binary,
         "compile vendored run-dumper.c",
     );
+    run_command(
+        Command::new("bash")
+            .arg(manifest_dir.join("scripts/assert-staged-loader.sh"))
+            .arg(&stage_root)
+            .arg(&run_dumper_binary),
+        "assert staged loader for run-dumper",
+    );
     let run_dumper_output = Command::new(&run_dumper_binary)
         .arg(manifest_dir.join("compat/examples/anchors.yaml"))
         .arg(manifest_dir.join("compat/examples/json.yaml"))
@@ -619,7 +716,12 @@ fn staged_install_runs_phase6_c_probes_and_tools() {
     );
     let run_dumper_stdout =
         String::from_utf8(run_dumper_output.stdout).expect("run-dumper stdout utf8");
-    assert_eq!(run_dumper_stdout.matches("PASSED (length:").count(), 2, "{run_dumper_stdout}");
+    assert!(!run_dumper_stdout.contains("FAILED"), "{run_dumper_stdout}");
+    assert_eq!(
+        run_dumper_stdout.matches("PASSED (length:").count(),
+        2,
+        "{run_dumper_stdout}"
+    );
 
     let reformatter_binary =
         temp_dir("example-reformatter-alt-safe").join("example-reformatter-alt-safe");
@@ -631,6 +733,13 @@ fn staged_install_runs_phase6_c_probes_and_tools() {
         &reformatter_binary,
         "compile vendored example-reformatter-alt.c",
     );
+    run_command(
+        Command::new("bash")
+            .arg(manifest_dir.join("scripts/assert-staged-loader.sh"))
+            .arg(&stage_root)
+            .arg(&reformatter_binary),
+        "assert staged loader for example-reformatter-alt",
+    );
     let mut reformatter = Command::new(&reformatter_binary)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -641,7 +750,7 @@ fn staged_install_runs_phase6_c_probes_and_tools() {
         .stdin
         .as_mut()
         .expect("stdin piped")
-        .write_all(b"foo: [bar, {x: y}]\n")
+        .write_all(b"foo: [bar, baz]\n")
         .expect("failed to write reformatter input");
     let reformatter_output = reformatter
         .wait_with_output()
@@ -655,7 +764,7 @@ fn staged_install_runs_phase6_c_probes_and_tools() {
     let reformatter_stdout =
         String::from_utf8(reformatter_output.stdout).expect("reformatter stdout utf8");
     assert!(reformatter_stdout.contains("foo:"), "{reformatter_stdout}");
-    assert!(reformatter_stdout.contains("bar"), "{reformatter_stdout}");
+    assert!(reformatter_stdout.contains("baz"), "{reformatter_stdout}");
 
     let deconstructor_binary =
         temp_dir("example-deconstructor-alt-safe").join("example-deconstructor-alt-safe");
@@ -666,6 +775,13 @@ fn staged_install_runs_phase6_c_probes_and_tools() {
         manifest_dir.join("compat/original-tests/example-deconstructor-alt.c"),
         &deconstructor_binary,
         "compile vendored example-deconstructor-alt.c",
+    );
+    run_command(
+        Command::new("bash")
+            .arg(manifest_dir.join("scripts/assert-staged-loader.sh"))
+            .arg(&stage_root)
+            .arg(&deconstructor_binary),
+        "assert staged loader for example-deconstructor-alt",
     );
     let mut deconstructor = Command::new(&deconstructor_binary)
         .stdin(Stdio::piped())
@@ -690,13 +806,26 @@ fn staged_install_runs_phase6_c_probes_and_tools() {
     );
     let deconstructor_stdout =
         String::from_utf8(deconstructor_output.stdout).expect("deconstructor stdout utf8");
-    assert!(deconstructor_stdout.contains("STREAM-START"), "{deconstructor_stdout}");
-    assert!(deconstructor_stdout.contains("SCALAR"), "{deconstructor_stdout}");
+    assert!(
+        deconstructor_stdout.contains("STREAM-START"),
+        "{deconstructor_stdout}"
+    );
+    assert!(
+        deconstructor_stdout.contains("STREAM-END"),
+        "{deconstructor_stdout}"
+    );
 }
 
 unsafe fn build_scalar_document(document: *mut yaml_document_t, value: &[u8]) {
     assert_eq!(
-        yaml_document_initialize(document, ptr::null_mut(), ptr::null_mut(), ptr::null_mut(), 1, 1),
+        yaml_document_initialize(
+            document,
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            1,
+            1
+        ),
         1
     );
     assert_eq!(
@@ -751,7 +880,10 @@ unsafe fn build_roundtrip_document(document: *mut yaml_document_t) {
         UTF8_GREETING.len() as i32,
         yaml_scalar_style_t::YAML_PLAIN_SCALAR_STYLE,
     );
-    assert_eq!(yaml_document_append_mapping_pair(document, root, message_key, message_value), 1);
+    assert_eq!(
+        yaml_document_append_mapping_pair(document, root, message_key, message_value),
+        1
+    );
 
     let items_key = yaml_document_add_scalar(
         document,
@@ -779,9 +911,18 @@ unsafe fn build_roundtrip_document(document: *mut yaml_document_t) {
         -1,
         yaml_scalar_style_t::YAML_PLAIN_SCALAR_STYLE,
     );
-    assert_eq!(yaml_document_append_sequence_item(document, items_value, first_item), 1);
-    assert_eq!(yaml_document_append_sequence_item(document, items_value, second_item), 1);
-    assert_eq!(yaml_document_append_mapping_pair(document, root, items_key, items_value), 1);
+    assert_eq!(
+        yaml_document_append_sequence_item(document, items_value, first_item),
+        1
+    );
+    assert_eq!(
+        yaml_document_append_sequence_item(document, items_value, second_item),
+        1
+    );
+    assert_eq!(
+        yaml_document_append_mapping_pair(document, root, items_key, items_value),
+        1
+    );
 
     let meta_key = yaml_document_add_scalar(
         document,
@@ -809,8 +950,14 @@ unsafe fn build_roundtrip_document(document: *mut yaml_document_t) {
         -1,
         yaml_scalar_style_t::YAML_PLAIN_SCALAR_STYLE,
     );
-    assert_eq!(yaml_document_append_mapping_pair(document, meta_value, count_key, count_value), 1);
-    assert_eq!(yaml_document_append_mapping_pair(document, root, meta_key, meta_value), 1);
+    assert_eq!(
+        yaml_document_append_mapping_pair(document, meta_value, count_key, count_value),
+        1
+    );
+    assert_eq!(
+        yaml_document_append_mapping_pair(document, root, meta_key, meta_value),
+        1
+    );
 }
 
 unsafe fn assert_scalar_node(node: *mut yaml_node_t, tag: &CStr, value: &[u8]) {
@@ -818,7 +965,10 @@ unsafe fn assert_scalar_node(node: *mut yaml_node_t, tag: &CStr, value: &[u8]) {
     assert_eq!((*node).r#type, yaml_node_type_t::YAML_SCALAR_NODE);
     assert_eq!(CStr::from_ptr((*node).tag.cast()), tag);
     assert_eq!((*node).data.scalar.length, value.len());
-    assert_eq!(slice::from_raw_parts((*node).data.scalar.value, value.len()), value);
+    assert_eq!(
+        slice::from_raw_parts((*node).data.scalar.value, value.len()),
+        value
+    );
 }
 
 unsafe fn lookup_mapping_value(
@@ -831,8 +981,10 @@ unsafe fn lookup_mapping_value(
         let key_node = yaml_document_get_node(document, (*pair).key);
         if !key_node.is_null()
             && (*key_node).r#type == yaml_node_type_t::YAML_SCALAR_NODE
-            && slice::from_raw_parts((*key_node).data.scalar.value, (*key_node).data.scalar.length)
-                == key
+            && slice::from_raw_parts(
+                (*key_node).data.scalar.value,
+                (*key_node).data.scalar.length,
+            ) == key
         {
             return Some(yaml_document_get_node(document, (*pair).value));
         }
@@ -869,7 +1021,13 @@ unsafe fn compare_documents(lhs: &yaml_document_t, rhs: &yaml_document_t) -> boo
     let rhs_nodes = rhs.nodes.top.offset_from(rhs.nodes.start);
     lhs_nodes == rhs_nodes
         && (lhs_nodes == 0
-            || compare_nodes(lhs as *const _ as *mut _, 1, rhs as *const _ as *mut _, 1, 0))
+            || compare_nodes(
+                lhs as *const _ as *mut _,
+                1,
+                rhs as *const _ as *mut _,
+                1,
+                0,
+            ))
 }
 
 unsafe fn compare_nodes(
@@ -946,15 +1104,19 @@ unsafe fn compare_nodes(
             for index in 0..lhs_len {
                 let lhs_pair = *(*lhs).data.mapping.pairs.start.offset(index);
                 let rhs_pair = *(*rhs).data.mapping.pairs.start.offset(index);
-                if !compare_nodes(lhs_document, lhs_pair.key, rhs_document, rhs_pair.key, level + 1)
-                    || !compare_nodes(
-                        lhs_document,
-                        lhs_pair.value,
-                        rhs_document,
-                        rhs_pair.value,
-                        level + 1,
-                    )
-                {
+                if !compare_nodes(
+                    lhs_document,
+                    lhs_pair.key,
+                    rhs_document,
+                    rhs_pair.key,
+                    level + 1,
+                ) || !compare_nodes(
+                    lhs_document,
+                    lhs_pair.value,
+                    rhs_document,
+                    rhs_pair.value,
+                    level + 1,
+                ) {
                     return false;
                 }
             }
@@ -981,7 +1143,9 @@ unsafe fn emit_ok(emitter: *mut yaml_emitter_t, init_ok: i32, event: *mut yaml_e
     let problem = if (*emitter).problem.is_null() {
         "<null>".to_owned()
     } else {
-        CStr::from_ptr((*emitter).problem).to_string_lossy().into_owned()
+        CStr::from_ptr((*emitter).problem)
+            .to_string_lossy()
+            .into_owned()
     };
     assert_eq!(
         result,
@@ -1036,7 +1200,9 @@ fn run_cargo_example_with_stdin(
         .expect("stdin should be piped")
         .write_all(stdin_bytes)
         .expect("failed to write example input");
-    let output = child.wait_with_output().expect("failed to collect example output");
+    let output = child
+        .wait_with_output()
+        .expect("failed to collect example output");
     assert!(
         output.status.success(),
         "{example} failed\nstdout:\n{}\nstderr:\n{}",

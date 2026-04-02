@@ -11,11 +11,11 @@ use crate::types::{
         YAML_EMIT_BLOCK_MAPPING_SIMPLE_VALUE_STATE, YAML_EMIT_BLOCK_MAPPING_VALUE_STATE,
         YAML_EMIT_BLOCK_SEQUENCE_FIRST_ITEM_STATE, YAML_EMIT_BLOCK_SEQUENCE_ITEM_STATE,
         YAML_EMIT_DOCUMENT_CONTENT_STATE, YAML_EMIT_DOCUMENT_END_STATE,
-        YAML_EMIT_DOCUMENT_START_STATE, YAML_EMIT_END_STATE,
-        YAML_EMIT_FIRST_DOCUMENT_START_STATE, YAML_EMIT_FLOW_MAPPING_FIRST_KEY_STATE,
-        YAML_EMIT_FLOW_MAPPING_KEY_STATE, YAML_EMIT_FLOW_MAPPING_SIMPLE_VALUE_STATE,
-        YAML_EMIT_FLOW_MAPPING_VALUE_STATE, YAML_EMIT_FLOW_SEQUENCE_FIRST_ITEM_STATE,
-        YAML_EMIT_FLOW_SEQUENCE_ITEM_STATE, YAML_EMIT_STREAM_START_STATE,
+        YAML_EMIT_DOCUMENT_START_STATE, YAML_EMIT_END_STATE, YAML_EMIT_FIRST_DOCUMENT_START_STATE,
+        YAML_EMIT_FLOW_MAPPING_FIRST_KEY_STATE, YAML_EMIT_FLOW_MAPPING_KEY_STATE,
+        YAML_EMIT_FLOW_MAPPING_SIMPLE_VALUE_STATE, YAML_EMIT_FLOW_MAPPING_VALUE_STATE,
+        YAML_EMIT_FLOW_SEQUENCE_FIRST_ITEM_STATE, YAML_EMIT_FLOW_SEQUENCE_ITEM_STATE,
+        YAML_EMIT_STREAM_START_STATE,
     },
     yaml_emitter_t,
     yaml_encoding_t::{YAML_ANY_ENCODING, YAML_UTF8_ENCODING},
@@ -36,8 +36,8 @@ use crate::types::{
     yaml_sequence_style_t::YAML_FLOW_SEQUENCE_STYLE,
     yaml_tag_directive_t, yaml_version_directive_t,
 };
-use crate::yaml::{size_t, yaml_char_t, yaml_string_t};
 use crate::writer::yaml_emitter_flush_impl;
+use crate::yaml::{size_t, yaml_char_t, yaml_string_t};
 use crate::{libc, yaml_event_delete, yaml_free, yaml_strdup, PointerExt};
 
 #[inline]
@@ -47,7 +47,11 @@ fn flag(value: c_int) -> bool {
 
 #[inline]
 fn bool_flag(value: bool) -> c_int {
-    if value { 1 } else { 0 }
+    if value {
+        1
+    } else {
+        0
+    }
 }
 
 unsafe fn FLUSH(emitter: *mut yaml_emitter_t) -> Success {
@@ -733,7 +737,12 @@ unsafe fn yaml_emitter_emit_flow_sequence_item(
             return FAIL;
         }
     }
-    if PUSH!((*emitter), (*emitter).states, YAML_EMIT_FLOW_SEQUENCE_ITEM_STATE) == crate::FAIL {
+    if PUSH!(
+        (*emitter),
+        (*emitter).states,
+        YAML_EMIT_FLOW_SEQUENCE_ITEM_STATE
+    ) == crate::FAIL
+    {
         return FAIL;
     }
     yaml_emitter_emit_node(emitter, event, false, true, false, false)
@@ -839,8 +848,11 @@ unsafe fn yaml_emitter_emit_flow_mapping_key(
         {
             return FAIL;
         }
-        if PUSH!((*emitter), (*emitter).states, YAML_EMIT_FLOW_MAPPING_VALUE_STATE)
-            == crate::FAIL
+        if PUSH!(
+            (*emitter),
+            (*emitter).states,
+            YAML_EMIT_FLOW_MAPPING_VALUE_STATE
+        ) == crate::FAIL
         {
             return FAIL;
         }
@@ -883,7 +895,12 @@ unsafe fn yaml_emitter_emit_flow_mapping_value(
             return FAIL;
         }
     }
-    if PUSH!((*emitter), (*emitter).states, YAML_EMIT_FLOW_MAPPING_KEY_STATE) == crate::FAIL {
+    if PUSH!(
+        (*emitter),
+        (*emitter).states,
+        YAML_EMIT_FLOW_MAPPING_KEY_STATE
+    ) == crate::FAIL
+    {
         return FAIL;
     }
     yaml_emitter_emit_node(emitter, event, false, false, true, false)
@@ -924,7 +941,12 @@ unsafe fn yaml_emitter_emit_block_sequence_item(
     {
         return FAIL;
     }
-    if PUSH!((*emitter), (*emitter).states, YAML_EMIT_BLOCK_SEQUENCE_ITEM_STATE) == crate::FAIL {
+    if PUSH!(
+        (*emitter),
+        (*emitter).states,
+        YAML_EMIT_BLOCK_SEQUENCE_ITEM_STATE
+    ) == crate::FAIL
+    {
         return FAIL;
     }
     yaml_emitter_emit_node(emitter, event, false, true, false, false)
@@ -970,8 +992,11 @@ unsafe fn yaml_emitter_emit_block_mapping_key(
         {
             return FAIL;
         }
-        if PUSH!((*emitter), (*emitter).states, YAML_EMIT_BLOCK_MAPPING_VALUE_STATE)
-            == crate::FAIL
+        if PUSH!(
+            (*emitter),
+            (*emitter).states,
+            YAML_EMIT_BLOCK_MAPPING_VALUE_STATE
+        ) == crate::FAIL
         {
             return FAIL;
         }
@@ -1012,7 +1037,12 @@ unsafe fn yaml_emitter_emit_block_mapping_value(
             return FAIL;
         }
     }
-    if PUSH!((*emitter), (*emitter).states, YAML_EMIT_BLOCK_MAPPING_KEY_STATE) == crate::FAIL {
+    if PUSH!(
+        (*emitter),
+        (*emitter).states,
+        YAML_EMIT_BLOCK_MAPPING_KEY_STATE
+    ) == crate::FAIL
+    {
         return FAIL;
     }
     yaml_emitter_emit_node(emitter, event, false, false, true, false)
@@ -1206,7 +1236,10 @@ unsafe fn yaml_emitter_select_scalar_style(
 ) -> Success {
     let mut style: yaml_scalar_style_t = (*event).data.scalar.style;
     let no_tag = (*emitter).tag_data.handle.is_null() && (*emitter).tag_data.suffix.is_null();
-    if no_tag && !flag((*event).data.scalar.plain_implicit) && !flag((*event).data.scalar.quoted_implicit) {
+    if no_tag
+        && !flag((*event).data.scalar.plain_implicit)
+        && !flag((*event).data.scalar.quoted_implicit)
+    {
         return yaml_emitter_set_emitter_error(
             emitter,
             b"neither tag nor implicit flags are specified\0" as *const u8 as *const libc::c_char,

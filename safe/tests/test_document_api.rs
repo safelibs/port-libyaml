@@ -249,7 +249,10 @@ fn parser_load_reports_composer_errors_for_alias_misuse() {
         yaml_parser_set_input_string(&mut parser, undefined_alias.as_ptr(), undefined_alias.len());
         assert_eq!(yaml_parser_load(&mut parser, &mut document), 0);
         assert_eq!(parser.error, yaml_error_type_t::YAML_COMPOSER_ERROR);
-        assert_eq!(CStr::from_ptr(parser.problem), cstr!("found undefined alias"));
+        assert_eq!(
+            CStr::from_ptr(parser.problem),
+            cstr!("found undefined alias")
+        );
         yaml_parser_delete(&mut parser);
     }
 }

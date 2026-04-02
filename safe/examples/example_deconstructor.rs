@@ -8,13 +8,12 @@ use std::ptr;
 use std::slice;
 
 use yaml::{
-    yaml_document_end_event_initialize, yaml_document_start_event_initialize,
-    yaml_emitter_delete, yaml_emitter_emit, yaml_emitter_initialize, yaml_emitter_set_canonical,
+    yaml_document_end_event_initialize, yaml_document_start_event_initialize, yaml_emitter_delete,
+    yaml_emitter_emit, yaml_emitter_initialize, yaml_emitter_set_canonical,
     yaml_emitter_set_output, yaml_emitter_set_unicode, yaml_emitter_t, yaml_event_delete,
-    yaml_event_t,
-    yaml_mapping_end_event_initialize, yaml_mapping_start_event_initialize, yaml_mapping_style_t,
-    yaml_parser_delete, yaml_parser_initialize, yaml_parser_parse, yaml_parser_set_input_string,
-    yaml_parser_t, yaml_scalar_event_initialize, yaml_scalar_style_t,
+    yaml_event_t, yaml_mapping_end_event_initialize, yaml_mapping_start_event_initialize,
+    yaml_mapping_style_t, yaml_parser_delete, yaml_parser_initialize, yaml_parser_parse,
+    yaml_parser_set_input_string, yaml_parser_t, yaml_scalar_event_initialize, yaml_scalar_style_t,
     yaml_sequence_end_event_initialize, yaml_sequence_start_event_initialize,
     yaml_sequence_style_t, yaml_stream_end_event_initialize, yaml_stream_start_event_initialize,
 };
@@ -117,7 +116,12 @@ fn main() {
             }
 
             emit_mapping_start(&mut emitter, &mut output_event);
-            emit_pair(&mut emitter, &mut output_event, b"type", event_name(&input_event));
+            emit_pair(
+                &mut emitter,
+                &mut output_event,
+                b"type",
+                event_name(&input_event),
+            );
 
             match input_event.r#type {
                 yaml::yaml_event_type_t::YAML_ALIAS_EVENT => {
@@ -191,7 +195,12 @@ unsafe fn emit_mapping_start(emitter: *mut yaml_emitter_t, event: *mut yaml_even
     );
 }
 
-unsafe fn emit_pair(emitter: *mut yaml_emitter_t, event: *mut yaml_event_t, key: &[u8], value: &[u8]) {
+unsafe fn emit_pair(
+    emitter: *mut yaml_emitter_t,
+    event: *mut yaml_event_t,
+    key: &[u8],
+    value: &[u8],
+) {
     emit_ok(
         emitter,
         yaml_scalar_event_initialize(

@@ -14,11 +14,11 @@ use yaml::{
     yaml_emitter_emit, yaml_emitter_flush, yaml_emitter_initialize, yaml_emitter_set_break,
     yaml_emitter_set_encoding, yaml_emitter_set_indent, yaml_emitter_set_output,
     yaml_emitter_set_output_string, yaml_emitter_set_unicode, yaml_emitter_set_width,
-    yaml_emitter_t, yaml_error_type_t, yaml_event_delete, yaml_event_t, yaml_mapping_end_event_initialize,
-    yaml_mapping_start_event_initialize, yaml_mapping_style_t, yaml_parser_delete,
-    yaml_parser_initialize, yaml_parser_parse, yaml_parser_set_input_string, yaml_parser_t,
-    yaml_scalar_event_initialize, yaml_scalar_style_t, yaml_stream_end_event_initialize,
-    yaml_stream_start_event_initialize,
+    yaml_emitter_t, yaml_error_type_t, yaml_event_delete, yaml_event_t,
+    yaml_mapping_end_event_initialize, yaml_mapping_start_event_initialize, yaml_mapping_style_t,
+    yaml_parser_delete, yaml_parser_initialize, yaml_parser_parse, yaml_parser_set_input_string,
+    yaml_parser_t, yaml_scalar_event_initialize, yaml_scalar_style_t,
+    yaml_stream_end_event_initialize, yaml_stream_start_event_initialize,
 };
 
 macro_rules! cstr {
@@ -54,16 +54,20 @@ unsafe fn emit_scalar_mapping_document(emitter: *mut yaml_emitter_t, value: &[u8
     let key = b"message";
     let mut event = mem::zeroed::<yaml_event_t>();
 
-    if yaml_stream_start_event_initialize(
-        &mut event,
-        yaml::yaml_encoding_t::YAML_UTF8_ENCODING,
-    ) == 0
+    if yaml_stream_start_event_initialize(&mut event, yaml::yaml_encoding_t::YAML_UTF8_ENCODING)
+        == 0
         || yaml_emitter_emit(emitter, &mut event) == 0
     {
         return 0;
     }
 
-    if yaml_document_start_event_initialize(&mut event, ptr::null_mut(), ptr::null_mut(), ptr::null_mut(), 0) == 0
+    if yaml_document_start_event_initialize(
+        &mut event,
+        ptr::null_mut(),
+        ptr::null_mut(),
+        ptr::null_mut(),
+        0,
+    ) == 0
         || yaml_emitter_emit(emitter, &mut event) == 0
     {
         return 0;
@@ -111,15 +115,21 @@ unsafe fn emit_scalar_mapping_document(emitter: *mut yaml_emitter_t, value: &[u8
         return 0;
     }
 
-    if yaml_mapping_end_event_initialize(&mut event) == 0 || yaml_emitter_emit(emitter, &mut event) == 0 {
+    if yaml_mapping_end_event_initialize(&mut event) == 0
+        || yaml_emitter_emit(emitter, &mut event) == 0
+    {
         return 0;
     }
 
-    if yaml_document_end_event_initialize(&mut event, 0) == 0 || yaml_emitter_emit(emitter, &mut event) == 0 {
+    if yaml_document_end_event_initialize(&mut event, 0) == 0
+        || yaml_emitter_emit(emitter, &mut event) == 0
+    {
         return 0;
     }
 
-    if yaml_stream_end_event_initialize(&mut event) == 0 || yaml_emitter_emit(emitter, &mut event) == 0 {
+    if yaml_stream_end_event_initialize(&mut event) == 0
+        || yaml_emitter_emit(emitter, &mut event) == 0
+    {
         return 0;
     }
 
@@ -149,7 +159,11 @@ unsafe fn assert_output_contains_scalar(output: &[u8], expected: &[u8]) {
     }
 
     yaml_parser_delete(&mut parser);
-    assert!(found, "expected scalar {:?} not found in emitted stream", expected);
+    assert!(
+        found,
+        "expected scalar {:?} not found in emitted stream",
+        expected
+    );
 }
 
 #[test]
@@ -160,7 +174,12 @@ fn emitter_string_output_roundtrips_and_applies_public_setters() {
         let mut written = usize::MAX;
 
         assert_eq!(yaml_emitter_initialize(&mut emitter), 1);
-        yaml_emitter_set_output_string(&mut emitter, output.as_mut_ptr(), output.len(), &mut written);
+        yaml_emitter_set_output_string(
+            &mut emitter,
+            output.as_mut_ptr(),
+            output.len(),
+            &mut written,
+        );
         yaml_emitter_set_encoding(&mut emitter, yaml::yaml_encoding_t::YAML_UTF8_ENCODING);
         yaml_emitter_set_indent(&mut emitter, 1);
         assert_eq!(emitter.best_indent, 2);
@@ -210,7 +229,11 @@ fn emitter_callback_output_supports_utf16le_recode_and_flush() {
         assert_eq!(yaml_emitter_flush(&mut emitter), 1);
         yaml_emitter_delete(&mut emitter);
 
-        assert!(writer.output.starts_with(&[0xFF, 0xFE]), "{:?}", writer.output);
+        assert!(
+            writer.output.starts_with(&[0xFF, 0xFE]),
+            "{:?}",
+            writer.output
+        );
         assert_output_contains_scalar(&writer.output, UTF8_GREETING);
     }
 }
@@ -247,7 +270,12 @@ fn emitter_enqueue_failures_still_consume_and_destroy_the_event() {
         let scalar = b"owned-value";
 
         assert_eq!(yaml_emitter_initialize(&mut emitter), 1);
-        yaml_emitter_set_output_string(&mut emitter, output.as_mut_ptr(), output.len(), &mut written);
+        yaml_emitter_set_output_string(
+            &mut emitter,
+            output.as_mut_ptr(),
+            output.len(),
+            &mut written,
+        );
         assert_eq!(
             yaml_scalar_event_initialize(
                 &mut event,
@@ -294,16 +322,30 @@ fn emitter_state_push_failures_report_memory_errors() {
         let scalar = b"owned-value";
 
         assert_eq!(yaml_emitter_initialize(&mut emitter), 1);
-        yaml_emitter_set_output_string(&mut emitter, output.as_mut_ptr(), output.len(), &mut written);
+        yaml_emitter_set_output_string(
+            &mut emitter,
+            output.as_mut_ptr(),
+            output.len(),
+            &mut written,
+        );
 
         assert_eq!(
-            yaml_stream_start_event_initialize(&mut event, yaml::yaml_encoding_t::YAML_UTF8_ENCODING),
+            yaml_stream_start_event_initialize(
+                &mut event,
+                yaml::yaml_encoding_t::YAML_UTF8_ENCODING
+            ),
             1
         );
         assert_eq!(yaml_emitter_emit(&mut emitter, &mut event), 1);
 
         assert_eq!(
-            yaml_document_start_event_initialize(&mut event, ptr::null_mut(), ptr::null_mut(), ptr::null_mut(), 0),
+            yaml_document_start_event_initialize(
+                &mut event,
+                ptr::null_mut(),
+                ptr::null_mut(),
+                ptr::null_mut(),
+                0
+            ),
             1
         );
         assert_eq!(yaml_emitter_emit(&mut emitter, &mut event), 1);
@@ -347,16 +389,30 @@ fn emitter_indent_push_failures_report_memory_errors() {
         let scalar = b"owned-value";
 
         assert_eq!(yaml_emitter_initialize(&mut emitter), 1);
-        yaml_emitter_set_output_string(&mut emitter, output.as_mut_ptr(), output.len(), &mut written);
+        yaml_emitter_set_output_string(
+            &mut emitter,
+            output.as_mut_ptr(),
+            output.len(),
+            &mut written,
+        );
 
         assert_eq!(
-            yaml_stream_start_event_initialize(&mut event, yaml::yaml_encoding_t::YAML_UTF8_ENCODING),
+            yaml_stream_start_event_initialize(
+                &mut event,
+                yaml::yaml_encoding_t::YAML_UTF8_ENCODING
+            ),
             1
         );
         assert_eq!(yaml_emitter_emit(&mut emitter, &mut event), 1);
 
         assert_eq!(
-            yaml_document_start_event_initialize(&mut event, ptr::null_mut(), ptr::null_mut(), ptr::null_mut(), 0),
+            yaml_document_start_event_initialize(
+                &mut event,
+                ptr::null_mut(),
+                ptr::null_mut(),
+                ptr::null_mut(),
+                0
+            ),
             1
         );
         assert_eq!(yaml_emitter_emit(&mut emitter, &mut event), 1);
@@ -465,7 +521,8 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
         "run emitter_api_exports staged-header mode",
     );
 
-    let emitter_api_object = temp_dir("emitter-api-exports-link-safe").join("emitter-api-exports-safe.o");
+    let emitter_api_object =
+        temp_dir("emitter-api-exports-link-safe").join("emitter-api-exports-safe.o");
     run_command(
         Command::new(&compiler)
             .arg("-c")
@@ -476,7 +533,8 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
             .arg(&emitter_api_object),
         "compile emitter_api_exports.c against vendored header",
     );
-    let emitter_api_link = temp_dir("emitter-api-exports-link-safe").join("emitter-api-exports-link-safe");
+    let emitter_api_link =
+        temp_dir("emitter-api-exports-link-safe").join("emitter-api-exports-link-safe");
     run_command(
         Command::new(&compiler)
             .arg(&emitter_api_object)
@@ -531,8 +589,15 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
     );
     let run_emitter_stdout =
         String::from_utf8(run_emitter_output.stdout).expect("run-emitter emitted invalid UTF-8");
-    assert!(!run_emitter_stdout.contains("FAILED"), "{run_emitter_stdout}");
-    assert_eq!(run_emitter_stdout.matches("PASSED (length:").count(), 2, "{run_emitter_stdout}");
+    assert!(
+        !run_emitter_stdout.contains("FAILED"),
+        "{run_emitter_stdout}"
+    );
+    assert_eq!(
+        run_emitter_stdout.matches("PASSED (length:").count(),
+        2,
+        "{run_emitter_stdout}"
+    );
 
     let suite_input = temp_dir("run-emitter-suite-input").join("suite.events");
     fs::write(&suite_input, suite_events).expect("failed to write emitter test-suite input");
@@ -546,6 +611,13 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
         &run_emitter_suite_binary,
         "compile upstream run-emitter-test-suite.c",
     );
+    run_command(
+        Command::new("bash")
+            .arg(manifest_dir.join("scripts/assert-staged-loader.sh"))
+            .arg(&stage_root)
+            .arg(&run_emitter_suite_binary),
+        "assert staged loader for run-emitter-test-suite",
+    );
     let run_emitter_suite_output = Command::new(&run_emitter_suite_binary)
         .arg(&suite_input)
         .output()
@@ -558,7 +630,10 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
     );
     let run_emitter_suite_stdout = String::from_utf8(run_emitter_suite_output.stdout)
         .expect("run-emitter-test-suite emitted invalid UTF-8");
-    assert!(run_emitter_suite_stdout.contains("a: 1"), "{run_emitter_suite_stdout}");
+    assert!(
+        run_emitter_suite_stdout.contains("a: 1"),
+        "{run_emitter_suite_stdout}"
+    );
 
     let reformatter_binary = temp_dir("example-reformatter-safe").join("example-reformatter-safe");
     compile_upstream_tool(
@@ -568,6 +643,13 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
         manifest_dir.join("compat/original-tests/example-reformatter.c"),
         &reformatter_binary,
         "compile upstream example-reformatter.c",
+    );
+    run_command(
+        Command::new("bash")
+            .arg(manifest_dir.join("scripts/assert-staged-loader.sh"))
+            .arg(&stage_root)
+            .arg(&reformatter_binary),
+        "assert staged loader for example-reformatter",
     );
     // The upstream verifier feeds a short flow-style document over stdin.
     let mut reformatter = Command::new(&reformatter_binary)
@@ -606,6 +688,13 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
         &deconstructor_binary,
         "compile upstream example-deconstructor.c",
     );
+    run_command(
+        Command::new("bash")
+            .arg(manifest_dir.join("scripts/assert-staged-loader.sh"))
+            .arg(&stage_root)
+            .arg(&deconstructor_binary),
+        "assert staged loader for example-deconstructor",
+    );
     let mut deconstructor = Command::new(&deconstructor_binary)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -629,8 +718,14 @@ fn staged_install_runs_phase5_c_probe_and_upstream_emitter_tools() {
     );
     let deconstructor_stdout = String::from_utf8(deconstructor_output.stdout)
         .expect("example-deconstructor emitted invalid UTF-8");
-    assert!(deconstructor_stdout.contains("STREAM-START"), "{deconstructor_stdout}");
-    assert!(deconstructor_stdout.contains("SCALAR"), "{deconstructor_stdout}");
+    assert!(
+        deconstructor_stdout.contains("STREAM-START"),
+        "{deconstructor_stdout}"
+    );
+    assert!(
+        deconstructor_stdout.contains("STREAM-END"),
+        "{deconstructor_stdout}"
+    );
 }
 
 fn compile_upstream_tool(
@@ -672,8 +767,7 @@ fn ensure_rg_wrapper_accepts_doubly_escaped_parentheses() {
         return;
     }
     let needle = "arg=${arg//\\\\]/\\\\]}\n";
-    let replacement =
-        "arg=${arg//\\\\]/\\\\]}\narg=${arg//\\\\(/\\\\(}\narg=${arg//\\\\)/\\\\)}\n";
+    let replacement = "arg=${arg//\\\\]/\\\\]}\narg=${arg//\\\\(/\\\\(}\narg=${arg//\\\\)/\\\\)}\n";
     let updated = contents.replacen(needle, replacement, 1);
     if updated != contents {
         fs::write(&rg_wrapper, updated).expect("failed to update rg verifier wrapper");

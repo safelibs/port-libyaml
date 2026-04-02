@@ -195,7 +195,8 @@ unsafe fn yaml_emitter_dump_scalar(
     anchor: *mut crate::yaml::yaml_char_t,
 ) -> Success {
     let mut event = zeroed::<yaml_event_t>();
-    let implicit = bool_to_c_int(strcmp((*node).tag.cast(), DEFAULT_SCALAR_TAG.as_ptr().cast()) == 0);
+    let implicit =
+        bool_to_c_int(strcmp((*node).tag.cast(), DEFAULT_SCALAR_TAG.as_ptr().cast()) == 0);
     initialize_scalar_event(
         &mut event,
         anchor,
@@ -304,7 +305,10 @@ unsafe fn yaml_emitter_dump_node(emitter: *mut yaml_emitter_t, index: c_int) -> 
     }
 }
 
-unsafe fn yaml_emitter_dump_impl(emitter: *mut yaml_emitter_t, document: *mut yaml_document_t) -> Success {
+unsafe fn yaml_emitter_dump_impl(
+    emitter: *mut yaml_emitter_t,
+    document: *mut yaml_document_t,
+) -> Success {
     (*emitter).document = document;
 
     if (*emitter).opened == 0 && yaml_emitter_open_impl(emitter).fail {
@@ -367,7 +371,11 @@ unsafe fn yaml_emitter_dump_impl(emitter: *mut yaml_emitter_t, document: *mut ya
 
 #[inline]
 fn bool_to_c_int(value: bool) -> c_int {
-    if value { 1 } else { 0 }
+    if value {
+        1
+    } else {
+        0
+    }
 }
 
 #[no_mangle]

@@ -13,8 +13,8 @@ mod loader;
 mod parser;
 mod reader;
 mod scanner;
-mod writer;
 pub mod types;
+mod writer;
 
 mod internal {
     pub mod buffer;
@@ -59,6 +59,7 @@ pub use document::{
     yaml_document_get_node, yaml_document_get_root_node, yaml_document_initialize,
 };
 pub use dumper::{yaml_emitter_close, yaml_emitter_dump, yaml_emitter_open};
+pub use emitter::yaml_emitter_emit;
 pub use event::{
     yaml_alias_event_initialize, yaml_document_end_event_initialize,
     yaml_document_start_event_initialize, yaml_event_delete, yaml_mapping_end_event_initialize,
@@ -71,12 +72,11 @@ pub use internal::utf::{
     INPUT_RAW_BUFFER_SIZE, MAX_FILE_SIZE, OUTPUT_BUFFER_SIZE, OUTPUT_RAW_BUFFER_SIZE,
 };
 pub use loader::yaml_parser_load;
-pub use emitter::yaml_emitter_emit;
 pub use parser::yaml_parser_parse;
 pub use reader::yaml_parser_update_buffer;
 pub use scanner::{yaml_parser_fetch_more_tokens, yaml_parser_scan};
-pub use writer::yaml_emitter_flush;
 pub use types::*;
+pub use writer::yaml_emitter_flush;
 
 pub(crate) const OK: c_int = 1;
 pub(crate) const FAIL: c_int = 0;

@@ -3,7 +3,7 @@ use std::ffi::CStr;
 use std::fs;
 use std::mem::size_of;
 use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::ptr;
 use std::slice;
@@ -367,6 +367,103 @@ fn staged_install_exports_full_manifest_and_runs_vendored_version_test() {
     assert!(stdout.contains("sizeof(token) = 80"));
     assert!(stdout.contains("sizeof(event) = 104"));
     assert!(stdout.contains("sizeof(parser) = 480"));
+}
+
+#[test]
+fn verify_link_objects_script_passes_against_fixed_stage_root() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let stage_root = PathBuf::from("/tmp/libyaml-safe-install");
+
+    run_command(
+        Command::new("bash")
+            .arg(manifest_dir.join("scripts/stage-install.sh"))
+            .arg(&stage_root),
+        "stage-install /tmp/libyaml-safe-install",
+    );
+    run_command(
+        Command::new("bash")
+            .arg(manifest_dir.join("scripts/verify-link-objects.sh"))
+            .arg(&stage_root),
+        "verify-link-objects",
+    );
+}
+
+#[test]
+fn exported_symbols_route_through_ffi_boundaries() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    for relative in [
+        "src/lib.rs",
+        "src/api.rs",
+        "src/document.rs",
+        "src/dumper.rs",
+        "src/emitter.rs",
+        "src/event.rs",
+        "src/loader.rs",
+        "src/parser.rs",
+        "src/reader.rs",
+        "src/scanner.rs",
+        "src/writer.rs",
+    ] {
+        let source = fs::read_to_string(manifest_dir.join(relative))
+            .expect("failed to read exported source");
+        for block in source.split("#[no_mangle]").skip(1) {
+            let signature = block
+                .lines()
+                .find(|line| line.contains("extern \"C\" fn"))
+                .expect("missing exported signature")
+                .trim()
+                .to_owned();
+            assert!(
+                block.contains("ffi::int_boundary(")
+                    || block.contains("ffi::ptr_boundary(")
+                    || block.contains("ffi::const_ptr_boundary(")
+                    || block.contains("ffi::void_boundary("),
+                "{relative}: exported symbol does not route through ffi boundary: {signature}"
+            );
+        }
+    }
+}
+
+#[test]
+fn library_build_configuration_never_uses_panic_abort() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let mut files = vec![
+        manifest_dir.join("Cargo.toml"),
+        manifest_dir.join("debian/rules"),
+    ];
+    if manifest_dir.join(".cargo/config.toml").is_file() {
+        files.push(manifest_dir.join(".cargo/config.toml"));
+    }
+    collect_files(&manifest_dir.join("debian"), &mut files);
+
+    for path in files {
+        let contents = fs::read_to_string(&path).unwrap_or_else(|error| {
+            panic!("failed to read {}: {error}", path.display());
+        });
+        assert!(
+            !contents.contains("panic = \"abort\"")
+                && !contents.contains("panic=\"abort\"")
+                && !contents.contains("-Cpanic=abort"),
+            "unexpected abort panic mode in {}",
+            path.display()
+        );
+    }
+}
+
+fn collect_files(dir: &Path, files: &mut Vec<PathBuf>) {
+    if !dir.is_dir() {
+        return;
+    }
+
+    for entry in fs::read_dir(dir).expect("failed to read audit directory") {
+        let entry = entry.expect("failed to read audit entry");
+        let path = entry.path();
+        if path.is_dir() {
+            collect_files(&path, files);
+        } else {
+            files.push(path);
+        }
+    }
 }
 
 fn compiler() -> String {

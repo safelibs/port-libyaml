@@ -6,8 +6,8 @@ use std::slice;
 use yaml::{
     yaml_document_delete, yaml_document_get_root_node, yaml_document_t, yaml_encoding_t,
     yaml_error_type_t, yaml_node_type_t, yaml_parser_delete, yaml_parser_initialize,
-    yaml_parser_load, yaml_parser_set_encoding, yaml_parser_set_input, yaml_parser_set_input_string,
-    yaml_parser_t, yaml_parser_update_buffer, MAX_FILE_SIZE,
+    yaml_parser_load, yaml_parser_set_encoding, yaml_parser_set_input,
+    yaml_parser_set_input_string, yaml_parser_t, yaml_parser_update_buffer, MAX_FILE_SIZE,
 };
 
 macro_rules! cstr {
@@ -18,8 +18,8 @@ macro_rules! cstr {
 
 const BOM_ORIGINAL: &[u8] = b"Hi is \xD0\x9F\xD1\x80\xD0\xB8\xD0\xB2\xD0\xB5\xD1\x82";
 const UTF16LE_GREETING_NO_BOM: &[u8] = &[
-    b'H', 0x00, b'i', 0x00, b' ', 0x00, b'i', 0x00, b's', 0x00, b' ', 0x00, 0x1f, 0x04, 0x40,
-    0x04, 0x38, 0x04, 0x32, 0x04, 0x35, 0x04, 0x42, 0x04,
+    b'H', 0x00, b'i', 0x00, b' ', 0x00, b'i', 0x00, b's', 0x00, b' ', 0x00, 0x1f, 0x04, 0x40, 0x04,
+    0x38, 0x04, 0x32, 0x04, 0x35, 0x04, 0x42, 0x04,
 ];
 const LONG: usize = 100_000;
 
@@ -193,7 +193,9 @@ fn bom_detection_matches_vendored_reader_suite() {
     ];
 
     for (title, input) in cases {
-        let segment = split_segments(input).next().expect("bom case should contain data");
+        let segment = split_segments(input)
+            .next()
+            .expect("bom case should contain data");
         let decoded = load_scalar_value(segment, None).expect(title);
         assert_eq!(decoded, BOM_ORIGINAL, "{title}");
     }
@@ -335,11 +337,19 @@ fn check_utf8_segment(title: &str, input: &[u8], expect_success: bool) {
                 assert!(root.is_null(), "{title}: expected an empty stream");
             } else {
                 assert!(!root.is_null(), "{title}: expected a scalar document");
-                assert_eq!((*root).r#type, yaml_node_type_t::YAML_SCALAR_NODE, "{title}");
+                assert_eq!(
+                    (*root).r#type,
+                    yaml_node_type_t::YAML_SCALAR_NODE,
+                    "{title}"
+                );
             }
         } else {
             assert!(!ok, "{title}: expected a reader error");
-            assert_eq!(parser.error, yaml_error_type_t::YAML_READER_ERROR, "{title}");
+            assert_eq!(
+                parser.error,
+                yaml_error_type_t::YAML_READER_ERROR,
+                "{title}"
+            );
         }
 
         if ok {
@@ -367,8 +377,8 @@ fn load_scalar_value(input: &[u8], encoding: Option<yaml_encoding_t>) -> Result<
             return Err(String::from("expected scalar document"));
         }
 
-        let value = slice::from_raw_parts((*root).data.scalar.value, (*root).data.scalar.length)
-            .to_vec();
+        let value =
+            slice::from_raw_parts((*root).data.scalar.value, (*root).data.scalar.length).to_vec();
         yaml_document_delete(&mut document);
         yaml_parser_delete(&mut parser);
         Ok(value)

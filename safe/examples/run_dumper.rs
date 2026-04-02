@@ -39,12 +39,21 @@ fn main() {
             let mut done = false;
             let mut failed = false;
 
-            print!("[{}] Loading, dumping, and loading again '{}': ", index + 1, path);
+            print!(
+                "[{}] Loading, dumping, and loading again '{}': ",
+                index + 1,
+                path
+            );
 
             assert_eq!(yaml_parser_initialize(&mut parser), 1);
             yaml_parser_set_input_string(&mut parser, input.as_ptr(), input.len());
             assert_eq!(yaml_emitter_initialize(&mut emitter), 1);
-            yaml_emitter_set_output_string(&mut emitter, output.as_mut_ptr(), BUFFER_SIZE, &mut written);
+            yaml_emitter_set_output_string(
+                &mut emitter,
+                output.as_mut_ptr(),
+                BUFFER_SIZE,
+                &mut written,
+            );
             yaml_emitter_set_canonical(&mut emitter, canonical);
             yaml_emitter_set_unicode(&mut emitter, unicode);
             assert_eq!(yaml_emitter_open(&mut emitter), 1);
@@ -87,7 +96,9 @@ fn main() {
                     }
                     let stream_done = yaml_document_get_root_node(&mut actual).is_null();
                     if !stream_done {
-                        if loaded >= documents.len() || !compare_documents(&documents[loaded], &actual) {
+                        if loaded >= documents.len()
+                            || !compare_documents(&documents[loaded], &actual)
+                        {
                             failed = true;
                         }
                         loaded += 1;
@@ -116,7 +127,9 @@ fn main() {
 }
 
 fn program_name() -> String {
-    env::args().next().unwrap_or_else(|| String::from("run_dumper"))
+    env::args()
+        .next()
+        .unwrap_or_else(|| String::from("run_dumper"))
 }
 
 fn parse_args() -> (i32, i32, Vec<String>) {
@@ -245,7 +258,15 @@ unsafe fn compare_documents(lhs: &yaml_document_t, rhs: &yaml_document_t) -> boo
 
     let lhs_nodes = lhs.nodes.top.offset_from(lhs.nodes.start);
     let rhs_nodes = rhs.nodes.top.offset_from(rhs.nodes.start);
-    lhs_nodes == rhs_nodes && (lhs_nodes == 0 || compare_nodes(lhs as *const _ as *mut _, 1, rhs as *const _ as *mut _, 1, 0))
+    lhs_nodes == rhs_nodes
+        && (lhs_nodes == 0
+            || compare_nodes(
+                lhs as *const _ as *mut _,
+                1,
+                rhs as *const _ as *mut _,
+                1,
+                0,
+            ))
 }
 
 unsafe fn compare_nodes(
@@ -272,7 +293,10 @@ unsafe fn compare_nodes(
         yaml_node_type_t::YAML_SCALAR_NODE => {
             (*lhs).data.scalar.length == (*rhs).data.scalar.length
                 && std::slice::from_raw_parts((*lhs).data.scalar.value, (*lhs).data.scalar.length)
-                    == std::slice::from_raw_parts((*rhs).data.scalar.value, (*rhs).data.scalar.length)
+                    == std::slice::from_raw_parts(
+                        (*rhs).data.scalar.value,
+                        (*rhs).data.scalar.length,
+                    )
         }
         yaml_node_type_t::YAML_SEQUENCE_NODE => {
             let lhs_len = (*lhs)
@@ -322,15 +346,19 @@ unsafe fn compare_nodes(
             for index in 0..lhs_len {
                 let lhs_pair = *(*lhs).data.mapping.pairs.start.offset(index);
                 let rhs_pair = *(*rhs).data.mapping.pairs.start.offset(index);
-                if !compare_nodes(lhs_document, lhs_pair.key, rhs_document, rhs_pair.key, level + 1)
-                    || !compare_nodes(
-                        lhs_document,
-                        lhs_pair.value,
-                        rhs_document,
-                        rhs_pair.value,
-                        level + 1,
-                    )
-                {
+                if !compare_nodes(
+                    lhs_document,
+                    lhs_pair.key,
+                    rhs_document,
+                    rhs_pair.key,
+                    level + 1,
+                ) || !compare_nodes(
+                    lhs_document,
+                    lhs_pair.value,
+                    rhs_document,
+                    rhs_pair.value,
+                    level + 1,
+                ) {
                     return false;
                 }
             }

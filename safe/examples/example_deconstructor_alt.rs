@@ -74,8 +74,14 @@ fn main() {
             eprintln!("Emitter error: {}", cstr(emitter.problem));
             process::exit(1);
         }
-        if yaml_document_initialize(&mut output_document, ptr::null_mut(), ptr::null_mut(), ptr::null_mut(), 0, 0)
-            == 0
+        if yaml_document_initialize(
+            &mut output_document,
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            0,
+            0,
+        ) == 0
         {
             eprintln!("Could not initialize the output document");
             process::exit(1);
@@ -122,8 +128,12 @@ fn main() {
                 yaml::yaml_event_type_t::YAML_STREAM_START_EVENT => {
                     let encoding = match input_event.data.stream_start.encoding {
                         yaml::yaml_encoding_t::YAML_UTF8_ENCODING => Some(b"utf-8".as_slice()),
-                        yaml::yaml_encoding_t::YAML_UTF16LE_ENCODING => Some(b"utf-16-le".as_slice()),
-                        yaml::yaml_encoding_t::YAML_UTF16BE_ENCODING => Some(b"utf-16-be".as_slice()),
+                        yaml::yaml_encoding_t::YAML_UTF16LE_ENCODING => {
+                            Some(b"utf-16-le".as_slice())
+                        }
+                        yaml::yaml_encoding_t::YAML_UTF16BE_ENCODING => {
+                            Some(b"utf-16-be".as_slice())
+                        }
                         yaml::yaml_encoding_t::YAML_ANY_ENCODING => None,
                     };
                     if let Some(encoding) = encoding {
@@ -145,12 +155,21 @@ fn main() {
                             yaml_mapping_style_t::YAML_FLOW_MAPPING_STYLE,
                         );
                         ensure(version != 0, &mut output_document);
-                        add_mapping_pair_node(&mut output_document, properties, b"version", version);
+                        add_mapping_pair_node(
+                            &mut output_document,
+                            properties,
+                            b"version",
+                            version,
+                        );
                         add_pair(
                             &mut output_document,
                             version,
                             b"major",
-                            format!("{}", (*input_event.data.document_start.version_directive).major).as_bytes(),
+                            format!(
+                                "{}",
+                                (*input_event.data.document_start.version_directive).major
+                            )
+                            .as_bytes(),
                             INT_TAG.as_ptr(),
                             yaml_scalar_style_t::YAML_PLAIN_SCALAR_STYLE,
                         );
@@ -158,7 +177,11 @@ fn main() {
                             &mut output_document,
                             version,
                             b"minor",
-                            format!("{}", (*input_event.data.document_start.version_directive).minor).as_bytes(),
+                            format!(
+                                "{}",
+                                (*input_event.data.document_start.version_directive).minor
+                            )
+                            .as_bytes(),
                             INT_TAG.as_ptr(),
                             yaml_scalar_style_t::YAML_PLAIN_SCALAR_STYLE,
                         );
@@ -184,7 +207,11 @@ fn main() {
                             );
                             ensure(entry != 0, &mut output_document);
                             ensure(
-                                yaml_document_append_sequence_item(&mut output_document, tags, entry) == 1,
+                                yaml_document_append_sequence_item(
+                                    &mut output_document,
+                                    tags,
+                                    entry,
+                                ) == 1,
                                 &mut output_document,
                             );
                             add_pair(
@@ -457,13 +484,8 @@ unsafe fn add_pair(
         yaml_scalar_style_t::YAML_PLAIN_SCALAR_STYLE,
     );
     ensure(key_node != 0, document);
-    let value_node = yaml_document_add_scalar(
-        document,
-        tag,
-        value.as_ptr(),
-        value.len() as i32,
-        style,
-    );
+    let value_node =
+        yaml_document_add_scalar(document, tag, value.as_ptr(), value.len() as i32, style);
     ensure(value_node != 0, document);
     ensure(
         yaml_document_append_mapping_pair(document, mapping, key_node, value_node) == 1,

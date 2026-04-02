@@ -146,7 +146,10 @@ fn event_initializers_deep_copy_and_delete_zeroes_memory() {
         assert_eq!(event.r#type, yaml_event_type_t::YAML_ALIAS_EVENT);
         assert_ne!(event.data.alias.anchor, alias_anchor.as_mut_ptr());
         alias_anchor[0] = b'X';
-        assert_eq!(CStr::from_ptr(event.data.alias.anchor.cast()), cstr!("item"));
+        assert_eq!(
+            CStr::from_ptr(event.data.alias.anchor.cast()),
+            cstr!("item")
+        );
         yaml_event_delete(&mut event);
         assert_zeroed_event(&event);
 
@@ -173,7 +176,10 @@ fn event_initializers_deep_copy_and_delete_zeroes_memory() {
         scalar_anchor[0] = b'X';
         scalar_tag[0] = b'X';
         scalar_value[0] = b'X';
-        assert_eq!(CStr::from_ptr(event.data.scalar.anchor.cast()), cstr!("item"));
+        assert_eq!(
+            CStr::from_ptr(event.data.scalar.anchor.cast()),
+            cstr!("item")
+        );
         assert_eq!(
             CStr::from_ptr(event.data.scalar.tag.cast()),
             cstr!("tag:example.com,2026:text")
@@ -330,7 +336,10 @@ fn parser_parse_matches_expected_event_semantics() {
 
         parse_ok(&mut parser, &mut event);
         assert_eq!(event.r#type, yaml_event_type_t::YAML_SCALAR_EVENT);
-        assert_eq!(CStr::from_ptr(event.data.scalar.anchor.cast()), cstr!("item"));
+        assert_eq!(
+            CStr::from_ptr(event.data.scalar.anchor.cast()),
+            cstr!("item")
+        );
         assert_eq!(
             CStr::from_ptr(event.data.scalar.tag.cast()),
             cstr!("tag:example.com,2026:text")
@@ -357,7 +366,10 @@ fn parser_parse_matches_expected_event_semantics() {
 
         parse_ok(&mut parser, &mut event);
         assert_eq!(event.r#type, yaml_event_type_t::YAML_ALIAS_EVENT);
-        assert_eq!(CStr::from_ptr(event.data.alias.anchor.cast()), cstr!("item"));
+        assert_eq!(
+            CStr::from_ptr(event.data.alias.anchor.cast()),
+            cstr!("item")
+        );
         yaml_event_delete(&mut event);
 
         parse_ok(&mut parser, &mut event);
@@ -430,7 +442,10 @@ fn parser_reports_undefined_tag_handle_with_context() {
 
         assert_eq!(yaml_parser_parse(&mut parser, &mut event), 0);
         assert_eq!(parser.error, yaml::yaml_error_type_t::YAML_PARSER_ERROR);
-        assert_eq!(CStr::from_ptr(parser.context), cstr!("while parsing a node"));
+        assert_eq!(
+            CStr::from_ptr(parser.context),
+            cstr!("while parsing a node")
+        );
         assert_eq!(
             CStr::from_ptr(parser.problem),
             cstr!("found undefined tag handle")
@@ -589,6 +604,13 @@ fn staged_install_runs_phase3_c_probes_and_upstream_parser_tools() {
         "assert staged loader for run-parser-test-suite",
     );
 
+    run_command(
+        Command::new("bash")
+            .arg(manifest_dir.join("scripts/assert-staged-loader.sh"))
+            .arg(&stage_root)
+            .arg(&run_parser_test_suite),
+        "assert staged loader for run-parser-test-suite block input",
+    );
     let mut block_command = Command::new(&run_parser_test_suite);
     let block_output = run_command_with_input(
         &mut block_command,
@@ -600,6 +622,13 @@ fn staged_install_runs_phase3_c_probes_and_upstream_parser_tools() {
         "+STR\n+DOC\n+MAP\n=VAL :foo\n=VAL :bar\n-MAP\n-DOC\n-STR\n"
     );
 
+    run_command(
+        Command::new("bash")
+            .arg(manifest_dir.join("scripts/assert-staged-loader.sh"))
+            .arg(&stage_root)
+            .arg(&run_parser_test_suite),
+        "assert staged loader for run-parser-test-suite flow input",
+    );
     let mut flow_command = Command::new(&run_parser_test_suite);
     flow_command.arg("--flow").arg("keep");
     let flow_output = run_command_with_input(

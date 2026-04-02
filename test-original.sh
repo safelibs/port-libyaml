@@ -139,8 +139,11 @@ RUN LIBCAMERA_SRC_DIR="$(echo /tmp/libcamera-src/libcamera-*/)" \
  && rm -rf /tmp/libcamera-src /tmp/libcamera-yaml-smoke.cpp /tmp/libcamera-yaml-build.log
 
 COPY safe /src/libyaml-safe/safe
+COPY original /src/libyaml-safe/original
 
 RUN cd /src/libyaml-safe \
+ && bash safe/scripts/stage-install.sh /tmp/libyaml-safe-install \
+ && bash safe/scripts/verify-link-objects.sh /tmp/libyaml-safe-install \
  && rm -f /etc/dpkg/dpkg.cfg.d/excludes \
  && bash safe/scripts/build-deb.sh \
  && apt-get install -y --allow-downgrades --no-install-recommends \

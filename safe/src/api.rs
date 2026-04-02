@@ -299,7 +299,12 @@ pub unsafe extern "C" fn yaml_emitter_initialize(emitter: *mut yaml_emitter_t) -
         if BUFFER_INIT!((*emitter), (*emitter).buffer, crate::OUTPUT_BUFFER_SIZE) == FAIL {
             return FAIL;
         }
-        if BUFFER_INIT!((*emitter), (*emitter).raw_buffer, crate::OUTPUT_RAW_BUFFER_SIZE) == FAIL {
+        if BUFFER_INIT!(
+            (*emitter),
+            (*emitter).raw_buffer,
+            crate::OUTPUT_RAW_BUFFER_SIZE
+        ) == FAIL
+        {
             BUFFER_DEL!((*emitter).buffer);
             return FAIL;
         }
@@ -420,7 +425,10 @@ pub unsafe extern "C" fn yaml_emitter_set_encoding(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn yaml_emitter_set_canonical(emitter: *mut yaml_emitter_t, canonical: c_int) {
+pub unsafe extern "C" fn yaml_emitter_set_canonical(
+    emitter: *mut yaml_emitter_t,
+    canonical: c_int,
+) {
     ffi::void_boundary(|| unsafe {
         if emitter.is_null() {
             return;
