@@ -317,6 +317,12 @@ emitted = example.to_yaml
 raise "bad emit" unless emitted.includes?("count: 3")
 puts emitted
 CRYSTAL
-crystal run /tmp/crystal-smoke.cr >/tmp/crystal.log 2>&1
+pkg-config --libs yaml-0.1 >/tmp/crystal-pkgconfig.log 2>&1
+require_contains /tmp/crystal-pkgconfig.log "/usr/local/lib"
+crystal build /tmp/crystal-smoke.cr -o /tmp/crystal-smoke >/tmp/crystal-build.log 2>&1
+ldd /tmp/crystal-smoke >/tmp/crystal-ldd.log
+require_contains /tmp/crystal-ldd.log "/usr/local/lib/libyaml-0.so.2"
+strace -f -e trace=openat /tmp/crystal-smoke >/tmp/crystal.log 2>/tmp/crystal.strace
+require_contains /tmp/crystal.strace "/usr/local/lib/libyaml-0.so.2"
 require_contains /tmp/crystal.log "count: 3"
 EOF
