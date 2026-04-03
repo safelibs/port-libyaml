@@ -4,11 +4,13 @@ use std::fs;
 use std::mem;
 use std::path::PathBuf;
 use std::process::Command;
+use std::ptr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use yaml::{
-    yaml_parser_delete, yaml_parser_initialize, yaml_parser_scan, yaml_parser_set_input_string,
-    yaml_parser_t, yaml_token_delete, yaml_token_t, yaml_token_type_t,
+    yaml_parser_delete, yaml_parser_initialize, yaml_parser_scan, yaml_parser_set_input,
+    yaml_parser_set_input_string, yaml_parser_t, yaml_token_delete, yaml_token_t,
+    yaml_token_type_t,
 };
 
 #[test]
@@ -70,6 +72,31 @@ fn scans_checked_in_examples_without_failure() {
             "{relative}"
         );
     }
+}
+
+#[test]
+fn chunked_multibyte_simple_keys_use_character_indexes() {
+    let mut input = Vec::with_capacity(513 * 2 + 8);
+    for _ in 0..513 {
+        input.extend_from_slice(b"\xD1\x8F");
+    }
+    input.extend_from_slice(b": value\n");
+
+    let tokens =
+        scan_types_with_chunk(&input, 1).expect("chunked multibyte simple key should scan");
+    assert_eq!(
+        tokens,
+        vec![
+            yaml_token_type_t::YAML_STREAM_START_TOKEN,
+            yaml_token_type_t::YAML_BLOCK_MAPPING_START_TOKEN,
+            yaml_token_type_t::YAML_KEY_TOKEN,
+            yaml_token_type_t::YAML_SCALAR_TOKEN,
+            yaml_token_type_t::YAML_VALUE_TOKEN,
+            yaml_token_type_t::YAML_SCALAR_TOKEN,
+            yaml_token_type_t::YAML_BLOCK_END_TOKEN,
+            yaml_token_type_t::YAML_STREAM_END_TOKEN,
+        ]
+    );
 }
 
 #[test]
@@ -255,12 +282,30 @@ fn staged_install_runs_phase2_c_probes_and_upstream_run_scanner() {
 }
 
 fn scan_types(input: &[u8]) -> Result<Vec<yaml_token_type_t>, String> {
+    scan_types_with_chunk(input, 0)
+}
+
+fn scan_types_with_chunk(input: &[u8], chunk: usize) -> Result<Vec<yaml_token_type_t>, String> {
     let mut parser = unsafe { mem::zeroed::<yaml_parser_t>() };
+    let mut reader = MemoryReader {
+        input: input.as_ptr(),
+        size: input.len(),
+        offset: 0,
+        chunk,
+    };
     unsafe {
         if yaml_parser_initialize(&mut parser) == 0 {
             return Err(String::from("yaml_parser_initialize failed"));
         }
-        yaml_parser_set_input_string(&mut parser, input.as_ptr(), input.len());
+        if chunk == 0 {
+            yaml_parser_set_input_string(&mut parser, input.as_ptr(), input.len());
+        } else {
+            yaml_parser_set_input(
+                &mut parser,
+                Some(memory_read_handler),
+                (&mut reader as *mut MemoryReader).cast(),
+            );
+        }
 
         let mut tokens = Vec::new();
         loop {
@@ -292,6 +337,38 @@ fn scan_types(input: &[u8]) -> Result<Vec<yaml_token_type_t>, String> {
         yaml_parser_delete(&mut parser);
         Ok(tokens)
     }
+}
+
+#[repr(C)]
+struct MemoryReader {
+    input: *const u8,
+    size: usize,
+    offset: usize,
+    chunk: usize,
+}
+
+unsafe extern "C" fn memory_read_handler(
+    data: *mut core::ffi::c_void,
+    buffer: *mut u8,
+    size: usize,
+    size_read: *mut usize,
+) -> i32 {
+    let reader = &mut *data.cast::<MemoryReader>();
+    let remaining = reader.size.saturating_sub(reader.offset);
+    if remaining == 0 {
+        *size_read = 0;
+        return 1;
+    }
+
+    let mut limit = size;
+    if reader.chunk != 0 && limit > reader.chunk {
+        limit = reader.chunk;
+    }
+    let count = limit.min(remaining);
+    ptr::copy_nonoverlapping(reader.input.add(reader.offset), buffer, count);
+    reader.offset += count;
+    *size_read = count;
+    1
 }
 
 fn compiler() -> String {
