@@ -39,6 +39,7 @@ expected = [
     "libcamera0.2",
     "libappstream5",
     "crystal",
+    "libyaml-libyaml-perl",
 ]
 
 data = json.loads(Path("dependents.json").read_text(encoding="utf-8"))
@@ -72,6 +73,7 @@ RUN sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.s
       h2o \
       libcamera-dev \
       libcamera-ipa \
+      libyaml-libyaml-perl \
       netplan.io \
       php8.3-cli \
       php8.3-yaml \
@@ -334,4 +336,22 @@ ldd /tmp/crystal-smoke >/tmp/crystal-ldd.log 2>&1
 require_contains /tmp/crystal-ldd.log "libyaml-0.so.2 =>"
 strace -f -e trace=openat /tmp/crystal-smoke >/tmp/crystal.log 2>/tmp/crystal.strace
 require_contains /tmp/crystal.log "count: 3"
+
+log "libyaml-libyaml-perl"
+perl >/tmp/perl-yaml.log <<'PERL'
+use strict;
+use warnings;
+use YAML::XS qw(Load Dump);
+
+my $version = join('.', YAML::XS::LibYAML::libyaml_version());
+die "missing libyaml version\n" unless $version =~ /^\d+\.\d+\.\d+$/;
+
+my $data = Load("---\na: 1\nb:\n  - x\n  - y\n");
+die "bad parse\n" unless $data->{a} == 1 && $data->{b}[1] eq 'y';
+my $emitted = Dump($data);
+die "missing emit output\n" unless index($emitted, "a: 1") >= 0;
+print "libyaml=$version\n$emitted";
+PERL
+require_contains /tmp/perl-yaml.log "libyaml="
+require_contains /tmp/perl-yaml.log "a: 1"
 EOF

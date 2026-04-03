@@ -157,6 +157,20 @@
         "The Ubuntu source package Build-Depends on libyaml-dev, and the binary package Recommends libyaml-dev.",
         "The Crystal source tree includes stdlib YAML functionality, including YAML::Serializable support and YAML parsing and emitting code, which is why libyaml headers and development files are needed when building the toolchain."
       ]
+    },
+    {
+      "name": "libyaml-libyaml-perl",
+      "source_package": "libyaml-libyaml-perl",
+      "category": "Perl runtime/library",
+      "dependency_kind": "runtime",
+      "libyaml_packages": [
+        "libyaml-0-2"
+      ],
+      "runtime_functionality": "Provides Perl YAML parsing and emitting through YAML::XS, including direct access to the linked libyaml runtime version.",
+      "evidence": [
+        "The Ubuntu binary package directly Depends on libyaml-0-2 and describes itself as a Perl interface to libyaml, a YAML implementation.",
+        "The YAML-LibYAML module exposes YAML::XS load and dump operations and a YAML::XS::LibYAML::libyaml_version() entry point backed by the linked libyaml library."
+      ]
     }
   ]
 }
