@@ -202,6 +202,29 @@ fn bom_detection_matches_vendored_reader_suite() {
 }
 
 #[test]
+fn chunked_generic_reader_still_detects_boms() {
+    let cases: &[(&str, &[u8])] = &[
+        (
+            "bom (utf-8) through chunked reader",
+            b"\xEF\xBB\xBFHi is \xD0\x9F\xD1\x80\xD0\xB8\xD0\xB2\xD0\xB5\xD1\x82",
+        ),
+        (
+            "bom (utf-16-le) through chunked reader",
+            b"\xFF\xFEH\x00i\x00 \x00i\x00s\x00 \x00\x1F\x04@\x048\x042\x045\x04B\x04",
+        ),
+        (
+            "bom (utf-16-be) through chunked reader",
+            b"\xFE\xFF\x00H\x00i\x00 \x00i\x00s\x00 \x04\x1F\x04@\x048\x042\x045\x04B",
+        ),
+    ];
+
+    for (title, input) in cases {
+        let decoded = load_scalar_value_from_reader(input, 1, None).expect(title);
+        assert_eq!(decoded, BOM_ORIGINAL, "{title}");
+    }
+}
+
+#[test]
 fn long_utf8_sequence_decodes_as_single_scalar() {
     let mut input = Vec::with_capacity(3 + LONG * 2);
     let mut expected = Vec::with_capacity(LONG * 2);
@@ -365,6 +388,52 @@ fn load_scalar_value(input: &[u8], encoding: Option<yaml_encoding_t>) -> Result<
         let mut document = mem::zeroed::<yaml_document_t>();
         let ok = load_document(input, encoding, &mut parser, &mut document);
         if !ok {
+            let message = problem(&parser).unwrap_or_else(|| String::from("unknown parser error"));
+            yaml_parser_delete(&mut parser);
+            return Err(message);
+        }
+
+        let root = yaml_document_get_root_node(&mut document);
+        if root.is_null() || (*root).r#type != yaml_node_type_t::YAML_SCALAR_NODE {
+            yaml_document_delete(&mut document);
+            yaml_parser_delete(&mut parser);
+            return Err(String::from("expected scalar document"));
+        }
+
+        let value =
+            slice::from_raw_parts((*root).data.scalar.value, (*root).data.scalar.length).to_vec();
+        yaml_document_delete(&mut document);
+        yaml_parser_delete(&mut parser);
+        Ok(value)
+    }
+}
+
+fn load_scalar_value_from_reader(
+    input: &[u8],
+    chunk: usize,
+    encoding: Option<yaml_encoding_t>,
+) -> Result<Vec<u8>, String> {
+    unsafe {
+        let mut parser = mem::zeroed::<yaml_parser_t>();
+        let mut document = mem::zeroed::<yaml_document_t>();
+        let mut reader = MemoryReader {
+            input: input.as_ptr(),
+            size: input.len(),
+            offset: 0,
+            chunk,
+        };
+
+        assert_eq!(yaml_parser_initialize(&mut parser), 1);
+        yaml_parser_set_input(
+            &mut parser,
+            Some(memory_read_handler),
+            (&mut reader as *mut MemoryReader).cast(),
+        );
+        if let Some(encoding) = encoding {
+            yaml_parser_set_encoding(&mut parser, encoding);
+        }
+
+        if yaml_parser_load(&mut parser, &mut document) != 1 {
             let message = problem(&parser).unwrap_or_else(|| String::from("unknown parser error"));
             yaml_parser_delete(&mut parser);
             return Err(message);

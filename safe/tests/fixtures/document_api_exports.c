@@ -240,10 +240,52 @@ test_parser_load_with_chunked_reader(void)
     yaml_parser_delete(&parser);
 }
 
+static void
+test_empty_document_root_behavior(void)
+{
+    static const unsigned char input[] =
+        "---\n"
+        "...\n"
+        "---\n"
+        "answer: 42\n";
+    yaml_parser_t parser;
+    yaml_document_t empty;
+    yaml_document_t document;
+    yaml_document_t end;
+    yaml_node_t *root;
+    yaml_node_t *answer;
+
+    assert(yaml_parser_initialize(&parser));
+    yaml_parser_set_input_string(&parser, input, sizeof(input)-1);
+
+    assert(yaml_parser_load(&parser, &empty));
+    root = yaml_document_get_root_node(&empty);
+    assert(root);
+    assert(root->type == YAML_SCALAR_NODE);
+    assert(root->data.scalar.length == 0);
+    yaml_document_delete(&empty);
+
+    assert(yaml_parser_load(&parser, &document));
+    root = yaml_document_get_root_node(&document);
+    assert(root);
+    answer = lookup_mapping_value(&document, root, "answer");
+    assert(answer);
+    assert(answer->type == YAML_SCALAR_NODE);
+    assert(answer->data.scalar.length == 2);
+    assert(memcmp(answer->data.scalar.value, "42", 2) == 0);
+    yaml_document_delete(&document);
+
+    assert(yaml_parser_load(&parser, &end));
+    assert(yaml_document_get_root_node(&end) == NULL);
+    yaml_document_delete(&end);
+    yaml_parser_delete(&parser);
+}
+
 int
 main(void)
 {
     test_document_mutators();
     test_parser_load_with_chunked_reader();
+    test_empty_document_root_behavior();
     return 0;
 }

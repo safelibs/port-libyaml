@@ -258,6 +258,91 @@ fn parser_load_reports_composer_errors_for_alias_misuse() {
 }
 
 #[test]
+fn parser_load_distinguishes_explicit_empty_documents_from_stream_end() {
+    let input = b"---\n...\n---\nanswer: 42\n";
+
+    unsafe {
+        let mut parser = mem::zeroed::<yaml_parser_t>();
+        let mut empty = mem::zeroed::<yaml_document_t>();
+        let mut document = mem::zeroed::<yaml_document_t>();
+        let mut end = mem::zeroed::<yaml_document_t>();
+        assert_eq!(yaml_parser_initialize(&mut parser), 1);
+        yaml_parser_set_input_string(&mut parser, input.as_ptr(), input.len());
+
+        assert_eq!(yaml_parser_load(&mut parser, &mut empty), 1);
+        let root = yaml_document_get_root_node(&mut empty);
+        assert!(!root.is_null());
+        assert_eq!((*root).r#type, yaml_node_type_t::YAML_SCALAR_NODE);
+        assert_eq!(scalar_value(root), b"");
+        yaml_document_delete(&mut empty);
+
+        assert_eq!(yaml_parser_load(&mut parser, &mut document), 1);
+        let root = yaml_document_get_root_node(&mut document);
+        assert!(!root.is_null());
+        let answer = lookup_mapping_value(&mut document, root, b"answer").expect("answer");
+        assert_eq!(scalar_value(answer), b"42");
+        yaml_document_delete(&mut document);
+
+        assert_eq!(yaml_parser_load(&mut parser, &mut end), 1);
+        assert!(yaml_document_get_root_node(&mut end).is_null());
+        yaml_document_delete(&mut end);
+        yaml_parser_delete(&mut parser);
+    }
+}
+
+#[test]
+fn parser_load_reports_alias_misuse_through_chunked_reader() {
+    unsafe {
+        let duplicate_anchor = b"first: &a 1\nsecond: &a 2\n";
+        let mut reader = MemoryReader {
+            input: duplicate_anchor.as_ptr(),
+            size: duplicate_anchor.len(),
+            offset: 0,
+            chunk: 1,
+        };
+        let mut parser = mem::zeroed::<yaml_parser_t>();
+        let mut document = mem::zeroed::<yaml_document_t>();
+        assert_eq!(yaml_parser_initialize(&mut parser), 1);
+        yaml_parser_set_input(
+            &mut parser,
+            Some(memory_read_handler),
+            (&mut reader as *mut MemoryReader).cast(),
+        );
+        assert_eq!(yaml_parser_load(&mut parser, &mut document), 0);
+        assert_eq!(parser.error, yaml_error_type_t::YAML_COMPOSER_ERROR);
+        assert_eq!(
+            CStr::from_ptr(parser.context),
+            cstr!("found duplicate anchor; first occurrence")
+        );
+        assert_eq!(CStr::from_ptr(parser.problem), cstr!("second occurrence"));
+        yaml_parser_delete(&mut parser);
+
+        let undefined_alias = b"value: *missing\n";
+        let mut reader = MemoryReader {
+            input: undefined_alias.as_ptr(),
+            size: undefined_alias.len(),
+            offset: 0,
+            chunk: 1,
+        };
+        let mut parser = mem::zeroed::<yaml_parser_t>();
+        let mut document = mem::zeroed::<yaml_document_t>();
+        assert_eq!(yaml_parser_initialize(&mut parser), 1);
+        yaml_parser_set_input(
+            &mut parser,
+            Some(memory_read_handler),
+            (&mut reader as *mut MemoryReader).cast(),
+        );
+        assert_eq!(yaml_parser_load(&mut parser, &mut document), 0);
+        assert_eq!(parser.error, yaml_error_type_t::YAML_COMPOSER_ERROR);
+        assert_eq!(
+            CStr::from_ptr(parser.problem),
+            cstr!("found undefined alias")
+        );
+        yaml_parser_delete(&mut parser);
+    }
+}
+
+#[test]
 fn parser_load_supports_chunked_generic_read_handlers() {
     let input = b"answer: 42\n";
     let mut reader = MemoryReader {
